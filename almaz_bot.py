@@ -95,6 +95,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             amount INTEGER,
+            game_id TEXT,
             status TEXT DEFAULT 'pending',
             created_at TEXT,
             updated_at TEXT
@@ -146,12 +147,12 @@ def get_user(user_id):
     return dict(row) if row else None
 
 
-def create_withdraw_request(user_id, amount):
+def create_withdraw_request(user_id, amount, game_id):
     conn = get_conn()
     now = datetime.utcnow().isoformat()
     conn.execute(
-        "INSERT INTO requests (user_id, amount, status, created_at, updated_at) VALUES (?,?,'pending',?,?)",
-        (user_id, amount, now, now),
+        "INSERT INTO requests (user_id, amount, game_id, status, created_at, updated_at) VALUES (?,?,?,'pending',?,?)",
+        (user_id, amount, game_id, now, now),
     )
     conn.execute("UPDATE users SET balance = balance - ? WHERE user_id=?", (amount, user_id))
     conn.commit()
@@ -301,7 +302,8 @@ async def pending_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = ["📋 Kutilayotgan so'rovlar:\n"]
     for r in reqs:
         uname = f"@{r['username']}" if r["username"] else r["first_name"]
-        lines.append(f"#{r['id']} — {uname} (ID: {r['user_id']}) — {r['amount']} 💎")
+        gid = r["game_id"] or "—"
+        lines.append(f"#{r['id']} — {uname} (ID: {r['user_id']}) — {r['amount']} 💎 — Free Fire ID: {gid}")
     lines.append("\nTasdiqlash: /approve <id>\nRad etish: /reject <id>")
     await update.message.reply_text("\n".join(lines))
 
@@ -399,7 +401,7 @@ def api_me():
             "min_withdraw": MIN_WITHDRAW,
             "referral_link": f"https://t.me/{bot_username}?start=ref_{user_id}",
             "requests": [
-                {"id": r["id"], "amount": r["amount"], "status": r["status"], "date": r["created_at"][:10]}
+                {"id": r["id"], "amount": r["amount"], "status": r["status"], "date": r["created_at"][:10], "game_id": r["game_id"]}
                 for r in reqs
             ],
             "admin_username": ADMIN_USERNAME,
@@ -409,10 +411,15 @@ def api_me():
 
 @app.route("/api/withdraw", methods=["POST"])
 def api_withdraw():
-    init_data = request.json.get("initData", "") if request.is_json else ""
+    body = request.json if request.is_json else {}
+    init_data = body.get("initData", "")
+    game_id = (body.get("gameId") or "").strip()
     tg_user = verify_init_data(init_data)
     if not tg_user:
         return jsonify({"error": "invalid_init_data"}), 401
+
+    if not game_id:
+        return jsonify({"error": "game_id_required"}), 400
 
     user_id = tg_user["id"]
     user = get_user(user_id)
@@ -422,7 +429,7 @@ def api_withdraw():
         return jsonify({"error": "insufficient_balance", "min": MIN_WITHDRAW}), 400
 
     amount = user["balance"]
-    req_id = create_withdraw_request(user_id, amount)
+    req_id = create_withdraw_request(user_id, amount, game_id)
 
     if ADMIN_ID:
         uname = f"@{tg_user.get('username')}" if tg_user.get("username") else tg_user.get("first_name", "")
@@ -432,7 +439,8 @@ def api_withdraw():
                     ADMIN_ID,
                     f"💎 Yangi yechish so'rovi #{req_id}\n"
                     f"Foydalanuvchi: {uname} (ID: {user_id})\n"
-                    f"Miqdor: {amount} 💎\n\n"
+                    f"Miqdor: {amount} 💎\n"
+                    f"Free Fire ID: {game_id}\n\n"
                     f"Tasdiqlash: /approve {req_id}\nRad etish: /reject {req_id}",
                 )
             )
@@ -550,6 +558,19 @@ MINIAPP_HTML = """
   .modal-box .modal-icon { font-size: 40px; margin-bottom: 10px;}
   .modal-box h3 { font-size: 17px; margin-bottom: 8px;}
   .modal-box p { font-size: 13px; opacity: 0.75; margin-bottom: 20px; line-height: 1.5;}
+  .input-box {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: white;
+    font-size: 15px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .input-box:focus { outline: none; border-color: #4facfe; }
+  .input-label { font-size: 12px; opacity: 0.6; margin-bottom: 8px; text-align:left; }
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: #222; padding: 12px 20px; border-radius: 12px; font-size: 13px;
@@ -605,7 +626,9 @@ MINIAPP_HTML = """
   <div class="modal-box">
     <div class="modal-icon">💎</div>
     <h3>Olmosni yechishni tasdiqlaysizmi?</h3>
-    <p id="modalText">Butun balansingiz yechish uchun so'rov yuboriladi. Admin tasdiqlagach mablag' o'tkaziladi.</p>
+    <p id="modalText">Butun balansingiz yechish uchun so'rov yuboriladi. Admin tasdiqlagach almoslar hisobingizga o'tkaziladi.</p>
+    <div class="input-label">🎮 Free Fire ID raqamingiz</div>
+    <input type="text" class="input-box" id="gameIdInput" placeholder="Masalan: 123456789" inputmode="numeric">
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal()">Bekor qilish</button>
       <button class="btn btn-primary" onclick="confirmWithdraw()">Tasdiqlash</button>
@@ -668,7 +691,8 @@ function render(data) {
     list.innerHTML = data.requests.map(r => {
       const statusMap = {pending:'⏳ Kutilmoqda', approved:'✅ Tasdiqlangan', rejected:'❌ Rad etilgan'};
       const cls = 'status-' + r.status;
-      return '<div class="history-item"><span>' + r.amount + ' 💎 — ' + r.date + '</span>' +
+      const gidText = r.game_id ? ' • ID: ' + r.game_id : '';
+      return '<div class="history-item"><span>' + r.amount + ' 💎 — ' + r.date + gidText + '</span>' +
              '<span class="' + cls + '">' + (statusMap[r.status] || r.status) + '</span></div>';
     }).join('');
   }
@@ -702,20 +726,30 @@ function closeModal() {
 }
 
 async function confirmWithdraw() {
+  const gameId = document.getElementById('gameIdInput').value.trim();
+  if (!gameId) {
+    showToast('Free Fire ID kiriting ⚠️');
+    return;
+  }
   closeModal();
   try {
     const res = await fetch('/api/withdraw', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ initData: tg.initData })
+      body: JSON.stringify({ initData: tg.initData, gameId: gameId })
     });
     const data = await res.json();
     if (data.error) {
-      showToast('Xatolik: ' + data.error);
+      if (data.error === 'game_id_required') {
+        showToast('Free Fire ID kiritilmadi ⚠️');
+      } else {
+        showToast('Xatolik: ' + data.error);
+      }
       return;
     }
     tg.HapticFeedback.notificationOccurred('success');
     showToast('So\\'rov yuborildi ✅ #' + data.request_id);
+    document.getElementById('gameIdInput').value = '';
     loadData();
   } catch(e) {
     showToast('Xatolik yuz berdi');
