@@ -98,21 +98,7 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "❌ Siz hali barcha kanallarga a'zo bo'lmadingiz!\nIltimos, qayta a'zo bo'lib, 'Tekshirish' tugmasini bosing:",
             reply_markup=get_subscription_keyboard(unsubscribed),
             parse_mode="Markdown"
-        )
-Telegram
-FREE FIRE UZBEKISTAN
-👑 Kanal egasi @ruzvix
-
-⚡ Admin @ruzvix
-
-📩 Shikoyatlar uchun: @ruzvix
-
-📜 Qoidalar: @ak_olish_tartibii
-VIEW CHANNEL
-
-Акмал
-Album
-# Oddiy xabarlar yuborilganda ham obunani tekshirish
+        )# Oddiy xabarlar yuborilganda ham obunani tekshirish
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     is_subscribed, unsubscribed = await check_subscriptions(user_id, context)
@@ -201,11 +187,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💳 Almazni yechish", callback_data="withdraw"), InlineKeyboardButton("🆔 FF ID sozlash", callback_data="set_id")],
             [InlineKeyboardButton("📈 Statistika", callback_data="stats")]
         ])
-        user_name = update.effective_user.username
-
-Акмал
-Album
-username_str = f"@{user_name}" if user_name else "Mavjud emas"
+        user_name = update.effective_user.usernameusername_str = f"@{user_name}" if user_name else "Mavjud emas"
         
         msg = (
             "👤 Profilingiz\n\n"
