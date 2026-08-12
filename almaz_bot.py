@@ -1,153 +1,280 @@
-import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
-import sqlite3
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from telegram.error import TelegramError
 
-# ================= SOZLAMALAR =================
-BOT_TOKEN = '8631990028:AAHhHvbdC3L9DmSXwW0ujWD_WBFp41FHJf0'
-ADMIN_ID = 7915255052  # O'zingizning Telegram ID raqamingizni yozing
-CHANNELS = ['@d1ma_sultanov', '@DIMA_almazlar', '@d1ma_sultanov']
-PAYMENTS_CHANNEL = '@tolovlar_kanalini_yozing'
-MIN_WITHDRAW = 210
-REF_BONUS = 5
-SUPPORT_USERNAME = '@ruzvix'
-# ==============================================
+# Bot tokeningizni kiriting
+TOKEN = "8631990028:AAHhHvbdC3L9DmSXwW0ujWD_WBFp41FHJf0"
 
-bot = telebot.TeleBot(BOT_TOKEN)
+# Majburiy obuna kanallari ro'yxati (@ belgisi bilan)
+CHANNELS = [
+    "@ffuzbkzorg",
+    "@dima_almazlar",
+    "@d1ma_sultanov"
+]
 
-# Baza yaratish
-conn = sqlite3.connect('database.db', check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                  (user_id INTEGER PRIMARY KEY, balance INTEGER, referrals INTEGER)''')
-conn.commit()
+# Asosiy menyu
+MAIN_KEYBOARD = [
+    ["🤖 Sun'iy Intellekt"],
+    ["💎 Almaz ishlash", "🤝 Sheriklar"],
+    ["🎰 Spin", "⚙️ Telefonga Nastroyka"],
+    ["📊 Profilim", "🥇 Meningen darajam"],
+    ["🏆 Reyting", "🤝 Sherik Topish"],
+    ["🛒 O'yin Do'koni", "🎥 Youtuber Xizmatlari"]
+]
 
-# Majburiy obunani tekshirish funksiyasi
-def check_sub(user_id):
+# Foydalanuvchi barcha kanallarga obuna bo'lganini tekshiruvchi funksiya
+async def check_subscriptions(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> tuple[bool, list]:
+    unsubscribed_channels = []
     for channel in CHANNELS:
         try:
-            status = bot.get_chat_member(channel, user_id).status
-            if status in ['left', 'kicked']:
-                return False
-        except:
-            return False
-    return True
+            member = await context.bot.get_chat_member(chat_id=channel, user_id=user_id)
+            if member.status in ['left', 'kicked']:
+                unsubscribed_channels.append(channel)
+        except TelegramError:
+            # Bot kanalda admin bo'lmasa yoki kanal topilmasa
+            unsubscribed_channels.append(channel)
+            
+    is_subscribed = len(unsubscribed_channels) == 0
+    return is_subscribed, unsubscribed_channels
 
-# Bosh menyu
-def main_menu():
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(KeyboardButton("💎 Balans va Referal"), KeyboardButton("📊 Statistika"))
-    markup.add(KeyboardButton("💸 Almaz Yechish"), KeyboardButton("🆘 Yordam"))
-    markup.add(KeyboardButton("🤖 AI Yordamchi"))
-    return markup
-
-@bot.message_handler(commands=['start'])
-def start_command(message):
-    user_id = message.from_user.id
+# Majburiy obuna tugmalarini yaratish
+def get_subscription_keyboard(unsubscribed_channels: list) -> InlineKeyboardMarkup:
+    keyboard = []
+    for channel in unsubscribed_channels:
+        # @ffuzbkzorg -> https://t.me/ffuzbkzorg
+        url = f"https://t.me/{channel.replace('@', '')}"
+        keyboard.append([InlineKeyboardButton(f"➕ Kanag'a a'zo bo'lish ({channel})", url=url)])
     
-    # Bazaga qo'shish va referal tekshirish
-    cursor.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
-    user = cursor.fetchone()
-    
-    if not user:
-        cursor.execute("INSERT INTO users (user_id, balance, referrals) VALUES (?, ?, ?)", (user_id, 0, 0))
-        conn.commit()
-        
-        # Referal orqali kirgan bo'lsa
-        if len(message.text.split()) > 1:
-            ref_id = message.text.split()[1]
-            if ref_id.isdigit() and int(ref_id) != user_id:
-                cursor.execute("UPDATE users SET balance = balance + ?, referrals = referrals + 1 WHERE user_id = ?", (REF_BONUS, int(ref_id)))
-                conn.commit()
-                bot.send_message(int(ref_id), "🎉 Tabriklaymiz! Referal orqali do'stingiz kirdi va sizga 5 almaz berildi!")
+    # Tekshirish tugmasi
+    keyboard.append([InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub")])
+    return InlineKeyboardMarkup(keyboard)
 
-    if not check_sub(user_id):
-        markup = InlineKeyboardMarkup()
-        for ch in CHANNELS:
-            markup.add(InlineKeyboardButton(f"{ch} ga obuna bo'lish", url=f"https://t.me/{ch.replace('@', '')}"))
-        markup.add(InlineKeyboardButton("✅ Obunani tekshirish", callback_data="check_sub"))
-        bot.send_message(user_id, "Botdan foydalanish uchun quyidagi kanallarga obuna bo'lishingiz shart!", reply_markup=markup)
+# /start buyrug'i
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    is_subscribed, unsubscribed = await check_subscriptions(user_id, context)
+    
+    if not is_subscribed:
+        await update.message.reply_text(
+            "⚠️ Botdan foydalanish uchun quyidagi kanallarga a'zo bo'ling:",
+            reply_markup=get_subscription_keyboard(unsubscribed),
+            parse_mode="Markdown"
+        )
         return
 
-    bot.send_message(user_id, "Salom! Botimizga xush kelibsiz. Menyudan kerakli bo'limni tanlang.", reply_markup=main_menu())
+    first_name = update.effective_user.first_name or "Foydalanuvchi"
+    text = (
+        f"✨ Xush kelibsiz, {first_name}!\n\n"
+        "Siz barcha tekshiruvlardan muvaffaqiyatli o'tdingiz — endi botning "
+        "barcha imkoniyatlari ochildi. 🚀\n\n"
+        "Quyidagi menyudan keragini tanlang\n👇"
+    )
+    await update.message.reply_text(text, reply_markup=ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True))
 
-@bot.callback_query_handler(func=lambda call: call.data == "check_sub")
-def verify_sub(call):
-    if check_sub(call.from_user.id):
-        bot.answer_callback_query(call.id, "Obuna tasdiqlandi!")
-        bot.send_message(call.from_user.id, "Endi botdan to'liq foydalanishingiz mumkin.", reply_markup=main_menu())
+# Inline "✅ Tekshirish" tugmasi bosilganda ishlovchi handler
+async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    is_subscribed, unsubscribed = await check_subscriptions(user_id, context)
+    
+    if is_subscribed:
+        await query.message.delete()
+        first_name = query.from_user.first_name or "Foydalanuvchi"
+        text = (
+            f"✨ Xush kelibsiz, {first_name}!\n\n"
+            "Siz barcha tekshiruvlardan muvaffaqiyatli o'tdingiz — endi botning "
+            "barcha imkoniyatlari ochildi. 🚀\n\n"
+            "Quyidagi menyudan keragini tanlang\n👇"
+        )
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=text,
+            reply_markup=ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True)
+        )
     else:
-        bot.answer_callback_query(call.id, "Hali hamma kanallarga obuna bo'lmadingiz!", show_alert=True)
+        await query.edit_message_text(
+            "❌ Siz hali barcha kanallarga a'zo bo'lmadingiz!\nIltimos, qayta a'zo bo'lib, 'Tekshirish' tugmasini bosing:",
+            reply_markup=get_subscription_keyboard(unsubscribed),
+            parse_mode="Markdown"
+        )
+Telegram
+FREE FIRE UZBEKISTAN
+👑 Kanal egasi @ruzvix
 
-@bot.message_handler(func=lambda message: True)
-def handle_text(message):
-    user_id = message.from_user.id
+⚡ Admin @ruzvix
+
+📩 Shikoyatlar uchun: @ruzvix
+
+📜 Qoidalar: @ak_olish_tartibii
+VIEW CHANNEL
+
+Акмал
+Album
+# Oddiy xabarlar yuborilganda ham obunani tekshirish
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    is_subscribed, unsubscribed = await check_subscriptions(user_id, context)
     
-    if not check_sub(user_id):
-        bot.send_message(user_id, "Iltimos, avval kanallarga obuna bo'ling. /start ni bosing.")
+    if not is_subscribed:
+        await update.message.reply_text(
+            "⚠️ Botdan foydalanish uchun avval barcha kanallarga a'zo bo'ling!",
+            reply_markup=get_subscription_keyboard(unsubscribed),
+            parse_mode="Markdown"
+        )
         return
 
-    text = message.text
-    cursor.execute("SELECT balance, referrals FROM users WHERE user_id=?", (user_id,))
-    user = cursor.fetchone()
-    
-    if text == "💎 Balans va Referal":
-        bot_info = bot.get_me()
-        ref_link = f"https://t.me/{bot_info.username}?start={user_id}"
-        msg = (f"💎 <b>Sizning balansingiz:</b> {user[0]} almaz\n"
-               f"👥 <b>Taklif qilgan do'stlaringiz:</b> {user[1]} ta\n\n"
-               f"🔗 <b>Sizning referal silkangiz:</b>\n{ref_link}\n\n"
-               f"Har bir taklif uchun {REF_BONUS} almaz olasiz!")
-        bot.send_message(user_id, msg, parse_mode="HTML")
-        
-    elif text == "📊 Statistika":
-        cursor.execute("SELECT COUNT(*) FROM users")
-        total_users = cursor.fetchone()[0]
-        bot.send_message(user_id, f"📊 <b>Bot statistikasi:</b>\n\nJami foydalanuvchilar: {total_users} ta", parse_mode="HTML")
-        
-    elif text == "🆘 Yordam":
-        bot.send_message(user_id, f"Savollar yoki murojaatlar uchun admin: {SUPPORT_USERNAME}")
-        
-    elif text == "🤖 AI Yordamchi":
-        bot.send_message(user_id, "Salom, jigar! Men sizning sun'iy intellekt yordamchingizman. Bot bo'yicha yoki boshqa istalgan savolingizni bering (Bu joy AI API ulanishini kutmoqda).")
-        
-    elif text == "💸 Almaz Yechish":
-        if user[0] < MIN_WITHDRAW:
-            bot.send_message(user_id, f"❌ Balansingiz yetarli emas. Minimal yechish {MIN_WITHDRAW} almaz.")
-        else:
-            # So'rov adminga ketadi
-            markup = InlineKeyboardMarkup()
-            markup.add(
-                InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{user_id}_{user[0]}"),
-                InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{user_id}")
-            )
-            admin_msg = f"🔔 <b>Yangi zayavka!</b>\n\nFoydalanuvchi ID: {user_id}\nYechmoqchi bo'lgan summa: {user[0]} almaz."
-            bot.send_message(ADMIN_ID, admin_msg, parse_mode="HTML", reply_markup=markup)
-            
-            # Balansni nolga tushirish (yoki kutish rejimiga o'tkazish)
-            cursor.execute("UPDATE users SET balance = 0 WHERE user_id=?", (user_id,))
-            conn.commit()
-            
-            bot.send_message(user_id, "⏳ Zayavka adminga yuborildi. Tasdiqlanishini kuting.")
+    text = update.message.text
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("approve_") or call.data.startswith("reject_"))
-def admin_approval(call):
-    if call.from_user.id != ADMIN_ID:
-        return
-        
-    data = call.data.split('_')
-    action = data[0]
-    target_user = int(data[1])
-    
-    if action == "approve":
-        amount = data[2]
-        bot.edit_message_text(f"✅ {target_user} ning so'rovi tasdiqlandi.", ADMIN_ID, call.message.message_id)
-        bot.send_message(target_user, f"🎉 Tabriklaymiz! Sizning {amount} almaz yechish so'rovingiz tasdiqlandi!")
-        
-        # To'lovlar kanaliga xabar
-        bot.send_message(PAYMENTS_CHANNEL, f"✅ <b>Yangi To'lov!</b>\n\nFoydalanuvchi ID: {target_user}\nMiqdor: {amount} almaz\n\nBotimiz orqali ishonchli to'lov!", parse_mode="HTML")
-        
-    elif action == "reject":
-        bot.edit_message_text(f"❌ {target_user} ning so'rovi rad etildi.", ADMIN_ID, call.message.message_id)
-        bot.send_message(target_user, "❌ Almaz yechish so'rovingiz admin tomonidan rad etildi.")
+    # 1. Sun'iy Intellekt
+    if text == "🤖 Sun'iy Intellekt":
+        reply_keyboard = [
+            ["🤖 AI Suhbat"],
+            ["🎭 Personaj Ovozida AI"],
+            ["✨ Nickname Yaratish"],
+            ["⬅️ Orqaga"]
+        ]
+        msg = (
+            "🤖 sun'iy Intellekt markazi\n\n"
+            "Bu yerda siz Free Fire bo'yicha eng professional AI xizmatlaridan foydalana olasiz.\n\n"
+            "👇 Quyidagi bo'limlardan birini tanlang:\n"
+            "• 🤖 AI Suhbat — Pro Coach bilan suhbat\n"
+            "• 🎭 Personaj Ovozida AI — FF qahramonlari ohangida javob"
+        )
+        await update.message.reply_text(msg, reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True))
 
-bot.polling(none_stop=True)
+    # 2. Sheriklar
+    elif text == "🤝 Sheriklar":
+        reply_keyboard = [
+            ["🔍 Sherik Qidirish"],
+            ["📢 E'lon Berish"],
+            ["👤 Mening Pasportim"],
+            ["ℹ️ Qo'llanma"],
+            ["⬅️ Orqaga"]
+        ]
+        msg = "⚔️ Sherik topish (Beta)\n\nQuyidagilardan birini tanlang:"
+        await update.message.reply_text(msg, reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True))
+
+    # 3. Spin
+    elif text == "🎰 Spin":
+        reply_keyboard = [
+            ["🎰 Spin qilish"],
+            ["📊 Mening spinlarim"],
+            ["🎁 Bonus spin olish"],
+            ["⬅️ Orqaga"]
+        ]
+        msg = (
+            "🎰 Spin Tizimi\n\n"
+            "Xush kelibsiz! Spin orqali almaz va itemlar yutib olishingiz mumkin!\n\n"
+            "📊 Bugungi holat:\n"
+            "🆓 Bepul spin: 1 ta\n"
+            "💰 Pullik spin: 2 ta (har biri 5 💎)\n"
+            "🎁 Bonus spin: 1 ta\n\n"
+            "💎 Sizning balansingiz: 0\n\n"
+            "⚠️ Bonus spin olish uchun avval 🎁 Bonus spin olish tugmasini bosing!"
+        )
+        await update.message.reply_text(msg, reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True))
+
+    # 4. Telefonga Nastroyka
+    elif text == "⚙️ Telefonga Nastroyka":
+        msg = (
+            "⚙️ Telefonga mos Free Fire sozlamalari\n\n"
+            "AI sizning qurilmangiz uchun ideal nastroykani yaratadi:\n"
+            "• General / Red Dot / 2X / 4X / AWM\n"
+            "• DPI tavsiyasi\n"
+            "• Otish tugmasi o'lchami\n"
+            "• Lagni kamaytirish bo'yicha maslahatlar\n"
+            "• 350+ telefon modeli uchun PRO optimizatsiya 😎\n\n"
+            "📱 Telefon modelini kiriting:\n"
+            "Masalan: Redmi Note 9, Samsung A12, iPhone 11\n\n"
+            "❗️ Telefon nomini to'g'ri yozing:\n"
+            "Redmi note13pro ❌ — noto'g'ri\n"
+            "Redmi note 13 pro ✅ — to'g'ri (bo'sh joyga e'tibor bering)\n\n"
+            "🔥 Sizga PRO-level Free Fire nastroykani tayyorlab beraman!"
+        )
+        await update.message.reply_text(msg, reply_markup=ReplyKeyboardMarkup([["⬅️ Orqaga"]], resize_keyboard=True))
+
+    # 5. Profilim
+    elif text == "📊 Profilim":
+        inline_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Almazni yechish", callback_data="withdraw"), InlineKeyboardButton("🆔 FF ID sozlash", callback_data="set_id")],
+            [InlineKeyboardButton("📈 Statistika", callback_data="stats")]
+        ])
+        user_name = update.effective_user.username
+
+Акмал
+Album
+username_str = f"@{user_name}" if user_name else "Mavjud emas"
+        
+        msg = (
+            "👤 Profilingiz\n\n"
+            f"👤 Username: {username_str}\n"
+            "🎮 Free Fire ID: Kiritilmagan\n"
+            "🏅 Liga: 🥉 Bronze liga\n"
+            "📊 Reyting ballari: 0\n"
+            "💎 Almaz: 0\n"
+            "🤝 Umumiy tasdiqlangan takliflar: 0\n\n"
+            "Almazlaringizni istagan paytda yechib olishingiz mumkin 👇"
+        )
+        await update.message.reply_text(msg, reply_markup=inline_keyboard)
+
+    # 6. Mening darajam
+    elif text == "🥇 Meningen darajam":
+        inline_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Darajani qanday oshiramiz ?", callback_data="how_to_rank")]
+        ])
+        msg = (
+            "📌 Shaxsiy statistika:\n"
+            "• Tasdiqlangan takliflar: 0\n"
+            "• Umumiy takliflar: 0\n"
+            "• Joriy Almaz balansi: 0\n\n"
+            "🎯 Keyingi liga: Silver\n"
+            "Unga yetish uchun yana 50 ball kerak.\n\n"
+            "ℹ️ Eslatma: Ligalar hozircha faqat obro' sifatida ishlaydi.\n"
+            "🔜 Yaqin vaqt ichida ligalar uchun alohida bonuslar qo'shiladi.\n"
+            "Faol bo'ling — birinchilar qatorida bo'lasiz! 🚀"
+        )
+        await update.message.reply_text(msg, reply_markup=inline_keyboard)
+
+    # 7. Reyting
+    elif text == "🏆 Reyting":
+        inline_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📜 Isbotlar ↗️", url="https://t.me/telegram")]
+        ])
+        msg = (
+            "⭐ Foydalanuvchi (ID: 5951770126) — 💎 42\n"
+            "⭐ @abbaz678 — 💎 41\n"
+            "⭐ Foydalanuvchi (ID: 8539440741) — 💎 40\n"
+            "⭐ Foydalanuvchi (ID: 7479009047) — 💎 39\n"
+            "⭐ @ELITE_PRICE_org — 💎 39\n"
+            "⭐ Foydalanuvchi (ID: 8894816864) — 💎 39\n"
+            "⭐ Foydalanuvchi (ID: 7480798039) — 💎 37\n"
+            "⭐ @omirbayev_xvk — 💎 37\n"
+            "⭐ @asad_bek03120 — 💎 36\n"
+            "⭐ Foydalanuvchi (ID: 6950726271) — 💎 36"
+        )
+        await update.message.reply_text(msg, reply_markup=inline_keyboard)
+
+    # 8. Orqaga
+    elif text == "⬅️ Orqaga":
+        await update.message.reply_text(
+            "🏠 Bosh menyuga qaytdingiz",
+            reply_markup=ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True)
+        )
+
+    else:
+        await update.message.reply_text("Quyidagi menyudan kerakli bo'limni tanlang 👇")
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(check_sub_callback, pattern="^check_sub$"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    print("Bot muvaffaqiyatli ishga tushdi...")
+    app.run_polling()
+
+if name == "main":
+    main()
