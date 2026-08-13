@@ -7,8 +7,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-API_TOKEN = '8805365427:AAFqqCpa8NWXRZ9lo1pJlmH_ozqZm1rQCf4
-'
+API_TOKEN = '8805365427:AAFqqCpa8NWXRZ9lo1pJlmH_ozqZm1rQCf4'
 ADMIN_ID = 7915255052  # O'zingizning Telegram ID'ingizni kiriting
 
 # Majburiy obuna kanallari
