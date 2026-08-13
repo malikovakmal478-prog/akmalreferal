@@ -4,7 +4,7 @@ import threading
 import os
 
 # ================= SOZLAMALAR =================
-API_TOKEN = '8805365427:AAFqqCpa8NWXRZ9lo1pJlmH_ozqZm1rQCf4'
+API_TOKEN = '8844914761:AAF5d8lG00n6NlPMqEHIB53fRfIEz7LcGTw'
 ADMIN_ID = 7915255052  # O'zingizning Telegram ID raqamingizni yozing
 # ==============================================
 
