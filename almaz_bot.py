@@ -9,7 +9,7 @@ import threading
 BOT_TOKEN = '8956850306:AAGYo7rMuNOu2SKWnkmZXyK6OaBQAGlhPKA'
 ADMIN_ID = 7849637859  # Sizning Telegram ID raqamingiz
 
-# Majburiy obuna kanallari
+# Majburiy obuna kanallari (Barchasi 4 ta)
 CHANNELS = ['@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor']
 PAYMENTS_CHANNEL = '@ffuzbkzorg'
 MIN_WITHDRAW = 210
@@ -31,7 +31,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users
                   (user_id INTEGER PRIMARY KEY, balance INTEGER, referrals INTEGER, ff_id TEXT, points INTEGER)''')
 conn.commit()
 
-# Foydalanuvchi holatlarini saqlash (Anketalar uchun)
 user_states = {}
 
 # Majburiy obunani tekshirish funksiyasi
@@ -104,7 +103,7 @@ def handle_text(message):
 
     text = message.text
     
-    # Holatlarni boshqarish (Sherik topish, FF ID yoki Youtuber xizmati)
+    # Holatlarni boshqarish
     if user_id in user_states:
         state = user_states[user_id]
         if state == 'waiting_ffid':
@@ -115,10 +114,9 @@ def handle_text(message):
             return
         elif state == 'waiting_yt_link':
             user_states.pop(user_id)
-            # Adminga yuborish
             markup = InlineKeyboardMarkup()
             markup.add(
-                InlineKeyboardButton("✅ Bog'lanish / Qabul qilish", callback_data=f"yt_accept_{user_id}"),
+                InlineKeyboardButton("✅ Qabul qilish", callback_data=f"yt_accept_{user_id}"),
                 InlineKeyboardButton("❌ Rad etish", callback_data=f"yt_reject_{user_id}")
             )
             admin_msg = f"🎬 **Yangi Youtuber xizmati buyurtmasi!**\n\nFoydalanuvchi ID: {user_id}\nUsername: @{message.from_user.username or 'Mavjud emas'}\nKanal/Video havolasi: {text}"
@@ -128,7 +126,7 @@ def handle_text(message):
         elif isinstance(state, dict):
             if state['step'] == 'waiting_age':
                 user_states[user_id] = {'age': text, 'step': 'waiting_level'}
-                bot.send_message(user_id, "🎮 Free Fire urvningiz (LEVEL) nechi?")
+                bot.send_message(user_id, "🎮 Free Fire darajangiz (LEVEL) nechi?")
                 return
             elif state['step'] == 'waiting_level':
                 user_states[user_id]['level'] = text
@@ -277,7 +275,6 @@ def admin_approval(call):
         
     data = call.data.split('_')
     action = data[0]
-    sub_action = data[1] if len(data) > 1 else ""
     
     if action == "approve":
         target_user = int(data[1])
@@ -291,12 +288,12 @@ def admin_approval(call):
         bot.edit_message_text(f"❌ {target_user} ning so'rovi rad etildi.", ADMIN_ID, call.message.message_id)
         bot.send_message(target_user, "❌ Almaz yechish so'rovingiz admin tomonidan rad etildi.")
         
-    elif action == "yt" and sub_action == "accept":
+    elif action == "yt" and data[1] == "accept":
         target_user = int(data[2])
         bot.edit_message_text(f"✅ Youtuber xizmati buyurtmasi qabul qilindi.", ADMIN_ID, call.message.message_id)
-        bot.send_message(target_user, f"🎉 Youtuber xizmatlari bo'yicha buyurtmangiz admin tomonidan tasdiqlandi! Tez orada aloqaga chiqamiz.")
+        bot.send_message(target_user, "🎉 Youtuber xizmatlari bo'yicha buyurtmangiz admin tomonidan tasdiqlandi! Tez orada aloqaga chiqamiz.")
         
-    elif action == "yt" and sub_action == "reject":
+    elif action == "yt" and data[1] == "reject":
         target_user = int(data[2])
         bot.edit_message_text(f"❌ Youtuber xizmati buyurtmasi rad etildi.", ADMIN_ID, call.message.message_id)
         bot.send_message(target_user, "❌ Youtuber xizmatlari bo'yicha yuborgan havolangiz admin tomonidan rad etildi.")
