@@ -6,7 +6,7 @@ from flask import Flask
 import threading
 
 # ================= SOZLAMALAR =================
-BOT_TOKEN = '8858044044:AAEyMd-XXF4V_23hQKuWzblQwCaONvwKyqg'
+BOT_TOKEN = '8956850306:AAGYo7rMuNOu2SKWnkmZXyK6OaBQAGlhPKA'
 ADMIN_ID = 7849637859  # <--- O'zingizning Telegram ID raqamingiz
 
 CHANNELS = ['@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor']
