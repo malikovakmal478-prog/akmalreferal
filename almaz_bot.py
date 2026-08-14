@@ -9,7 +9,7 @@ import threading
 BOT_TOKEN = '8858044044:AAEyMd-XXF4V_23hQKuWzblQwCaONvwKyqg'
 ADMIN_ID = 7849637859  # <--- O'zingizning Telegram ID raqamingiz
 
-CHANNELS = ['@ffuzbkzorg', '@DIMA_almazlar', '@d1ma_sultanov']
+CHANNELS = ['', '', '']
 PAYMENTS_CHANNEL = '@ffuzbkzorg'  # To'lovlar borib tushadigan kanal
 MIN_WITHDRAW = 210  # Minimal almaz yechish
 REF_BONUS = 5       # Har bir referal uchun qat'iy 5 almaz
