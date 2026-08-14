@@ -1,27 +1,18 @@
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 import sqlite3
-import os
-from flask import Flask
-import threading
 
 # ================= SOZLAMALAR =================
 BOT_TOKEN = '8956850306:AAGYo7rMuNOu2SKWnkmZXyK6OaBQAGlhPKA'
-ADMIN_ID = 7849637859  # <--- O'zingizning Telegram ID raqamingiz
-
+ADMIN_ID = 7849637859  # O'zingizning Telegram ID raqamingiz
 CHANNELS = ['@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor']
-PAYMENTS_CHANNEL = '@ffuzbkzorg'  # To'lovlar borib tushadigan kanal
-MIN_WITHDRAW = 210  # Minimal almaz yechish
-REF_BONUS = 5       # Har bir referal uchun qat'iy 5 almaz
+PAYMENTS_CHANNEL = '@tolovlar_kanalini_yozing'
+MIN_WITHDRAW = 210
+REF_BONUS = 5
 SUPPORT_USERNAME = '@ruzvix'
 # ==============================================
 
 bot = telebot.TeleBot(BOT_TOKEN)
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot ishlayapti!"
 
 # Baza yaratish
 conn = sqlite3.connect('database.db', check_same_thread=False)
@@ -30,7 +21,10 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users
                   (user_id INTEGER PRIMARY KEY, balance INTEGER, referrals INTEGER, ff_id TEXT, points INTEGER)''')
 conn.commit()
 
-# Majburiy obunani tekshirish funksiyasi
+# Foydalanuvchilarning anketalari vaqtinchalik xotirasi
+user_states = {}
+
+# Majburiy obunani tekshirish
 def check_sub(user_id):
     for channel in CHANNELS:
         try:
@@ -42,28 +36,12 @@ def check_sub(user_id):
     return True
 
 # Asosiy menyu
-def main_menu(user_id):
+def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
-        KeyboardButton("💎 Almaz ishlash"), KeyboardButton("🤝 Sheriklar"),
-        KeyboardButton("🎰 Spin"), KeyboardButton("⚙️ Telefonga Nastroyka"),
-        KeyboardButton("📊 Profilim"), KeyboardButton("👑 Mening darajam"),
-        KeyboardButton("🏆 Reyting"), KeyboardButton("🤝 Sherik Topish"),
-        KeyboardButton("🛒 O'yin Do'koni"), KeyboardButton("🎬 Youtuber Xizmatlari"),
-        KeyboardButton("🤖 Sun'iy Intellekt"), KeyboardButton("🆘 Yordam")
-    )
-    if user_id == ADMIN_ID:
-        markup.add(KeyboardButton("🛠 Admin Panel"))
-    return markup
-
-# Admin panel menyusi
-def admin_menu():
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    markup.add(
-        KeyboardButton("📊 Statistika"), 
-        KeyboardButton("📢 Xabar yuborish (Rassilka)"),
-        KeyboardButton("💰 Balansni boshqarish"),
-        KeyboardButton("🔙 Bosh menyuga qaytish")
+        KeyboardButton("💎 Almaz ishlash"), KeyboardButton("🤝 Sherik Topish"),
+        KeyboardButton("🛒 O'yin Do'koni"), KeyboardButton("📊 Profilim"),
+        KeyboardButton("💸 Almaz Yechish"), KeyboardButton("🆘 Yordam")
     )
     return markup
 
@@ -83,26 +61,23 @@ def start_command(message):
             if ref_id.isdigit() and int(ref_id) != user_id:
                 cursor.execute("UPDATE users SET balance = balance + ?, referrals = referrals + 1, points = points + 10 WHERE user_id = ?", (REF_BONUS, int(ref_id)))
                 conn.commit()
-                try:
-                    bot.send_message(int(ref_id), f"🎉 Tabriklaymiz! Referal orqali do'stingiz kirdi va sizga {REF_BONUS} almaz berildi!")
-                except:
-                    pass
+                bot.send_message(int(ref_id), f"🎉 Tabriklaymiz! Referal orqali do'stingiz kirdi va sizga {REF_BONUS} almaz berildi!")
 
     if not check_sub(user_id):
         markup = InlineKeyboardMarkup()
         for ch in CHANNELS:
             markup.add(InlineKeyboardButton(f"Kanalga a'zo bo'lish ({ch})", url=f"https://t.me/{ch.replace('@', '')}"))
         markup.add(InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub"))
-        bot.send_message(user_id, "⚠️ Botdan foydalanish uchun quyidagi kanallarga a'zo bo'ling:", reply_markup=markup)
+        bot.send_message(user_id, "⚠️ Botdan foydalanish uchun quyidagi kanallarga a'zo bo'lishingiz shart!", reply_markup=markup)
         return
 
-    bot.send_message(user_id, "🏡 Bosh menyuga qaytdingiz 👇", reply_markup=main_menu(user_id))
+    bot.send_message(user_id, "🏡 Bosh menyuga xush kelibsiz!", reply_markup=main_menu())
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_sub")
 def verify_sub(call):
     if check_sub(call.from_user.id):
         bot.answer_callback_query(call.id, "Obuna tasdiqlandi! ✅")
-        bot.send_message(call.from_user.id, "Quyidagi menyudan kerakli bo'limni tanlang 👇", reply_markup=main_menu(call.from_user.id))
+        bot.send_message(call.from_user.id, "Quyidagi menyudan kerakli bo'limni tanlang 👇", reply_markup=main_menu())
     else:
         bot.answer_callback_query(call.id, "Hali hamma kanallarga a'zo bo'lmadingiz!", show_alert=True)
 
@@ -115,171 +90,93 @@ def handle_text(message):
         return
 
     text = message.text
-    
-    # --- ADMIN PANEL BOSHQARUVI ---
-    if user_id == ADMIN_ID:
-        if text == "🛠 Admin Panel":
-            bot.send_message(user_id, "🛠 **Admin panelga xush kelibsiz!** Hamma narsani shu yerdan boshqarasiz:", reply_markup=admin_menu(), parse_mode="Markdown")
-            return
-        elif text == "🔙 Bosh menyuga qaytish":
-            bot.send_message(user_id, "🏡 Bosh menyu:", reply_markup=main_menu(user_id))
-            return
-        elif text == "📊 Statistika":
-            cursor.execute("SELECT COUNT(*) FROM users")
-            total_users = cursor.fetchone()[0]
-            cursor.execute("SELECT SUM(balance) FROM users")
-            total_balance = cursor.fetchone()[0] or 0
-            stats_msg = (f"📊 **Bot Statistikasi:**\n\n"
-                         f"👥 Jami foydalanuvchilar: **{total_users}** ta\n"
-                         f"💎 Foydalanuvchilardagi umumiy almaz: **{total_balance}** ta")
-            bot.send_message(user_id, stats_msg, parse_mode="Markdown")
-            return
-        elif text == "📢 Xabar yuborish (Rassilka)":
-            msg = bot.send_message(user_id, "✍️ Barcha foydalanuvchilarga yubormoqchi bo'lgan xabaringizni yuboring:")
-            bot.register_next_step_handler(msg, send_broadcast)
-            return
-        elif text == "💰 Balansni boshqarish":
-            msg = bot.send_message(user_id, "Foydalanuvchiga almaz qo'shish yoki ayirish uchun quyidagi formatda yuboring:\n\n`ID  Miqdor`\n(Masalan: `123456789  50` yoki `-20`)", parse_mode="Markdown")
-            bot.register_next_step_handler(msg, modify_balance)
-            return
-
-    # Foydalanuvchi ma'lumotlarini bazadan olish
     cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
     user = cursor.fetchone()
-    if not user:
-        cursor.execute("INSERT INTO users (user_id, balance, referrals, ff_id, points) VALUES (?, ?, ?, ?, ?)", (user_id, 0, 0, "Kiritilmagan", 0))
-        conn.commit()
-        user = (0, 0, "Kiritilmagan", 0)
+    
+    # Sherik topish anketa jarayoni
+    if user_id in user_states:
+        state = user_states[user_id]
+        if state == 'waiting_age':
+            user_states[user_id] = {'age': text, 'step': 'waiting_level'}
+            bot.send_message(user_id, "🎮 Free Fire darajangiz (LEVEL) nechchi?")
+            return
+        elif state.get('step') == 'waiting_level':
+            user_states[user_id]['level'] = text
+            user_states[user_id]['step'] = 'waiting_gender'
+            bot.send_message(user_id, "👤 O'g'il bolamisiz yoki qiz?")
+            return
+        elif state.get('step') == 'waiting_gender':
+            gender = text
+            data = user_states.pop(user_id)
+            msg = (f"🔍 **Sizga mos do'st topildi!**\n\n"
+                   f"🎂 Yoshi: {data['age']}\n"
+                   f"🎮 FF Level: {data['level']}\n"
+                   f"👤 Jinsi: {gender}\n"
+                   f"🔗 Murojaat uchun: @{message.from_user.username or 'Mavjud emas'}")
+            bot.send_message(user_id, msg, parse_mode="Markdown")
+            bot.send_message(user_id, "Bosh menyudasiz 👇", reply_markup=main_menu())
+            return
 
-    # --- TUGMALAR ---
-    if text == "💎 Almaz ishlash" or text == "🤝 Sheriklar":
+    if text == "💎 Almaz ishlash":
         bot_info = bot.get_me()
         ref_link = f"https://t.me/{bot_info.username}?start={user_id}"
-        msg = (f"💎 **Almaz ishlash & Referal**\n\n"
+        msg = (f"💎 **Almaz ishlash bo'limi**\n\n"
                f"👥 Taklif qilgan do'stlaringiz: {user[1]} ta\n"
                f"💎 Balansingiz: {user[0]} almaz\n\n"
                f"🔗 **Sizning referal havolangiz:**\n{ref_link}\n\n"
-               f"Har bir do'st uchun qat'iy {REF_BONUS} almaz beriladi!")
+               f"Har bir taklif qilgan odamingiz uchun 5 almaz qo'shiladi!")
         bot.send_message(user_id, msg, parse_mode="Markdown")
+        
+    elif text == "🤝 Sherik Topish":
+        user_states[user_id] = {'step': 'waiting_age'}
+        bot.send_message(user_id, "Necha yoshsiz?")
+        
+    elif text == "🛒 O'yin Do'koni":
+        shop_text = (
+            "🛒 **O'yin Do'koni - Almaz Narxlari**\n\n"
+            "110 💎 | 11 999 SO`M🇺🇿 | 78💸🇷🇺\nBONUS 🎁 BILAN | 180 💎\n\n"
+            "220 💎 | 23 999 SO`M🇺🇿 | 155💸🇷🇺\nBONUS 🎁 BILAN | 290 💎\n\n"
+            "341 💎 | 35 999 SO`M🇺🇿 | 235💸🇷🇺\nBONUS 🎁 BILAN | 559 💎\n\n"
+            "451 💎 | 47 999 SO`M🇺🇿 | 310💸🇷🇺\nBONUS 🎁 BILAN | 664 💎\n\n"
+            "572 💎 | 59 999 SO`M🇺🇿 | 390💸🇷🇺\nBONUS 🎁 BILAN | 936 💎\n\n"
+            "1 166 💎 | 111 999 SO`M🇺🇿 | 780 🇷🇺\nBONUS 🎁 BILAN | 1908 💎\n\n"
+            "2 398 💎 | 222 222 SO`M🇺🇿 | 1560💸🇷🇺\nBONUS 🎁 BILAN | 4 247 💎\n\n"
+            "6 160 💎 | 555 555 SO`M🇺🇿 | 3510💸🇷🇺\nBONUS 🎁 BILAN | 10 360 💎\n\n"
+            "12 320 💎 | 1 111 111 UZ_SO`M | 6870💸🇷🇺\nBONUS 🫴 BILAN | 15 960 💎\n\n"
+            "💙 **LVL UP PASS** — 70 000 SO`M💎\n\n"
+            "💎 **VAUCHER Almaz**\n"
+            "💳 OYLIK VAUCHER — 99 999 SO`M\n"
+            "💳 Haftalik Vaucher — 20 000 SO`M\n"
+            "💳 LITE VAUCHER — 7 777 SO`M\n\n"
+            f"SOTIB OLISH UCHUN MUROJAT ETASIZ: {SUPPORT_USERNAME} 💎"
+        )
+        bot.send_message(user_id, shop_text, parse_mode="Markdown")
         
     elif text == "📊 Profilim":
-        league = "Bronze liga"
-        if user[3] >= 50: league = "Silver liga"
         msg = (f"👤 **Profilingiz**\n\n"
-               f"👤 Username: @{message.from_user.username or 'Mavjud emas'}\n"
-               f"🎮 Free Fire ID: {user[2]}\n"
-               f"🏆 Liga: 🥉 {league}\n"
-               f"📊 Reyting ballari: {user[3]}\n"
-               f"💎 Almaz: {user[0]}\n"
-               f"🤝 Tasdiqlangan takliflar: {user[1]}\n\n"
-               f"Almazlaringizni istagan paytda yechib olishingiz mumkin 👇")
-        
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("💳 Almazni yechish", callback_data="withdraw"),
-                   InlineKeyboardButton("🆔 FF ID sozlash", callback_data="set_ffid"))
-        bot.send_message(user_id, msg, parse_mode="Markdown", reply_markup=markup)
-        
-    elif text == "🏆 Reyting":
-        cursor.execute("SELECT user_id, balance FROM users ORDER BY balance DESC LIMIT 10")
-        top_users = cursor.fetchall()
-        msg = "🏆 **Eng faol foydalanuvchilar reytingi:**\n\n"
-        for idx, row in enumerate(top_users, 1):
-            msg += f"{idx}. ID: {row[0]} — 💎 {row[1]} almaz\n"
+               f"💎 Almaz balansi: {user[0]}\n"
+               f"🤝 Takliflar soni: {user[1]} ta\n\n"
+               f"Almazlaringizni yechish uchun '💸 Almaz Yechish' tugmasini bosing.")
         bot.send_message(user_id, msg, parse_mode="Markdown")
         
-    elif text == "👑 Mening darajam":
-        points = user[3]
-        next_ball = 50 - (points % 50)
-        msg = (f"📊 **Shaxsiy statistika:**\n"
-               f"• Tasdiqlangan takliflar: {user[1]}\n"
-               f"• Joriy Almaz balansi: {user[0]}\n\n"
-               f"🎯 **Keyingi liga: Silver**\n"
-               f"Unga yetish uchun yana {next_ball} ball kerak.")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
-        
-    elif text == "⚙️ Telefonga Nastroyka":
-        msg = ("⚙️ **Telefonga mos Free Fire sozlamalari**\n\n"
-               "AI sizning qurilmangiz uchun ideal nastroykani yaratadi:\n"
-               "• General / Red Dot / 2X / 4X / AWM\n"
-               "• DPI tavsiyasi\n"
-               "• Otish tugmasi o'lchami\n\n"
-               "📱 Telefon modelini yuboring:")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
-        
-    elif text == "🎰 Spin":
-        bot.send_message(user_id, "🎰 Spin orqali imkoniyatingizni sinang! Do'stlaringizni taklif qilib ko'proq imkoniyat oling.")
-        
-    elif text == "🤖 Sun'iy Intellekt":
-        msg = ("🤖 **Sun'iy Intellekt / Pro Coach**\n\n"
-               "Bu yerda siz Free Fire bo'yicha eng professional AI xizmatlaridan foydalanishingiz mumkin.")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
-        
-    elif text in ["🆘 Yordam", "Sherik Topish", "O'yin Do'koni", "Youtuber Xizmatlari"]:
-        bot.send_message(user_id, f"Murojaat va xizmatlar uchun admin: {SUPPORT_USERNAME}")
-
-# Admin uchun balansni boshqarish funksiyasi
-def modify_balance(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    try:
-        parts = message.text.split()
-        target_id = int(parts[0])
-        amount = int(parts[1])
-        
-        cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, target_id))
-        conn.commit()
-        bot.send_message(ADMIN_ID, f"✅ Foydalanuvchi ({target_id}) balansiga {amount} almaz ta'sir qildirildi.")
-    except Exception as e:
-        bot.send_message(ADMIN_ID, f"❌ Xatolik yuz berdi! To'g'ri formatda yozing (Masalan: `123456789  50`)")
-
-# Admin uchun rassilka funksiyasi
-def send_broadcast(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    cursor.execute("SELECT user_id FROM users")
-    users = cursor.fetchall()
-    success = 0
-    for row in users:
-        try:
-            bot.copy_message(row[0], message.chat.id, message.message_id)
-            success += 1
-        except:
-            pass
-    bot.send_message(ADMIN_ID, f"✅ Xabar {success} ta foydalanuvchiga muvaffaqiyatli yuborildi.")
-
-@bot.callback_query_handler(func=lambda call: call.data == "set_ffid")
-def set_ffid_callback(call):
-    msg = bot.send_message(call.message.chat.id, "🎮 Free Fire ID raqamingizni kiriting (masalan: 123456789):")
-    bot.register_next_step_handler(msg, save_ff_id)
-
-def save_ff_id(message):
-    user_id = message.from_user.id
-    ff_id = message.text.strip()
-    cursor.execute("UPDATE users SET ff_id=? WHERE user_id=?", (ff_id, user_id))
-    conn.commit()
-    bot.send_message(user_id, f"✅ Free Fire ID muvaffaqiyatli saqlandi: {ff_id}", reply_markup=main_menu(user_id))
-
-@bot.callback_query_handler(func=lambda call: call.data == "withdraw")
-def withdraw_callback(call):
-    user_id = call.from_user.id
-    cursor.execute("SELECT balance FROM users WHERE user_id=?", (user_id,))
-    res = cursor.fetchone()
-    bal = res[0] if res else 0
-    
-    if bal < MIN_WITHDRAW:
-        bot.answer_callback_query(call.id, f"❌ Balansingiz yetarli emas! Minimal yechish {MIN_WITHDRAW} almaz.", show_alert=True)
-    else:
-        markup = InlineKeyboardMarkup()
-        markup.add(
-            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{user_id}_{bal}"),
-            InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{user_id}")
-        )
-        admin_msg = f"🔔 **Yangi yechish zayavkasi!**\n\nFoydalanuvchi ID: {user_id}\nMiqdor: {bal} almaz."
-        bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown", reply_markup=markup)
-        
-        cursor.execute("UPDATE users SET balance = 0 WHERE user_id=?", (user_id,))
-        conn.commit()
-        bot.edit_message_text("⏳ Zayavkangiz adminga yuborildi. Kuting!", call.message.chat.id, call.message.message_id)
+    elif text == "💸 Almaz Yechish":
+        if user[0] < MIN_WITHDRAW:
+            bot.send_message(user_id, f"❌ Kechirasiz, minimal almaz yechish {MIN_WITHDRAW} almaz. Sizda {user[0]} almaz mavjud.")
+        else:
+            markup = InlineKeyboardMarkup()
+            markup.add(
+                InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{user_id}_{user[0]}"),
+                InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{user_id}")
+            )
+            admin_msg = f"🔔 **Yangi zayavka!**\n\nFoydalanuvchi ID: {user_id}\nYechmoqchi bo'lgan miqdor: {user[0]} almaz."
+            bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown", reply_markup=markup)
+            
+            cursor.execute("UPDATE users SET balance = 0 WHERE user_id=?", (user_id,))
+            conn.commit()
+            bot.send_message(user_id, "⏳ Almaz yechish so'rovingiz adminga yuborildi. Tasdiqlanishini kuting!")
+            
+    elif text == "🆘 Yordam":
+        bot.send_message(user_id, f"Murojaat uchun: {SUPPORT_USERNAME}")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("approve_") or call.data.startswith("reject_"))
 def admin_approval(call):
@@ -293,22 +190,11 @@ def admin_approval(call):
     if action == "approve":
         amount = data[2]
         bot.edit_message_text(f"✅ {target_user} ning so'rovi tasdiqlandi.", ADMIN_ID, call.message.message_id)
-        bot.send_message(target_user, f"🎉 Tabriklaymiz! Sizning {amount} almaz yechish so'rovingiz tasdiqlandi!")
+        bot.send_message(target_user, "🎉 Almaz yechish so'rovingiz tasdiqlandi!")
         bot.send_message(PAYMENTS_CHANNEL, f"✅ **Yangi To'lov!**\n\nFoydalanuvchi ID: {target_user}\nMiqdor: {amount} almaz\nShuncha almaz tashlab berildi!", parse_mode="Markdown")
         
     elif action == "reject":
         bot.edit_message_text(f"❌ {target_user} ning so'rovi rad etildi.", ADMIN_ID, call.message.message_id)
         bot.send_message(target_user, "❌ Almaz yechish so'rovingiz admin tomonidan rad etildi.")
 
-def run_flask():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
-
-if __name__ == '__main__':
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    
-    print("Bot ishga tushdi...")
-    bot.remove_webhook()
-    bot.infinity_polling(skip_pending=True)
+bot.infinity_polling()
