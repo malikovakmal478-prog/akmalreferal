@@ -7,7 +7,7 @@ import threading
 
 # ================= SOZLAMALAR =================
 BOT_TOKEN = '8846688801:AAHLab-JBdYuNkq2shGUYACD7hW_TkByvf4'
-ADMIN_ID = 7849637859  # Sizning Telegram ID raqamingiz
+ADMIN_ID = 7915255052  # Sizning Telegram ID raqamingiz
 
 # Majburiy obuna kanallari
 CHANNELS = ['@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor']
