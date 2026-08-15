@@ -1,35 +1,3 @@
-"""
-BOT DO'KONI — Telegram bot (botlar/mahsulotlar sotish uchun) + TO'LIQ ADMIN PANEL
-====================================================================================
-Bu bot orqali siz TAYYOR BOTLARNI (yoki istalgan mahsulotni) katalog qilib
-qo'yasiz, mijozlar ko'rib buyurtma beradi, sizga xabar keladi, siz to'lovni
-tekshirib buyurtmani tasdiqlaysiz.
-
-MIJOZ (xaridor) tomoni:
-  /start          — do'kon katalogini ko'rsatadi
-  🛒 Mahsulot tanlash -> tafsilot (narx, tavsif) -> "Sotib olish" tugmasi
-  Sotib olish bosilsa -> mijozdan (agar kerak bo'lsa) izoh/kontakt so'raladi,
-  keyin ADMINGA buyurtma haqida xabar boradi.
-
-ADMIN PANEL (/admin):
-  ➕ Yangi mahsulot qo'shish   — nomi, narxi, tavsifi (bot turi, funksiyalari va h.k.)
-  📋 Mahsulotlar ro'yxati      — tahrirlash / o'chirish
-  🧾 Buyurtmalar               — kelgan buyurtmalarni ko'rish, ✅ To'landi / ❌ Bekor qilish
-  📊 Statistika                 — jami mijozlar, buyurtmalar, sotuvlar summasi
-  📢 Xabar yuborish             — barcha mijozlarga reklama/e'lon
-  👥 Mijozlar                   — ro'yxat, bloklash
-
-O'RNATISH:
-    pip install python-telegram-bot==21.*
-
-ISHGA TUSHIRISH:
-    1. BOT_TOKEN ni @BotFather tokeningizga almashtiring
-    2. ADMIN_IDS ga o'z Telegram ID'ingizni yozing (@userinfobot orqali)
-    3. python bot_shop.py
-
-Ma'lumotlar SQLite (shop.db) da saqlanadi.
-"""
-
 import logging
 import sqlite3
 from datetime import datetime, date
@@ -98,12 +66,6 @@ def is_banned(user_id):
     conn.close()
     return bool(row and row["banned"])
 
-def set_banned(user_id, value):
-    conn = db()
-    conn.execute("UPDATE customers SET banned=? WHERE user_id=?", (1 if value else 0, user_id))
-    conn.commit()
-    conn.close()
-
 def add_product(name, price, description):
     conn = db()
     conn.execute("INSERT INTO products(name, price, description, active) VALUES(?,?,?,1)", (name, price, description))
@@ -158,7 +120,7 @@ def list_orders(status=None, limit=8, offset=0):
     conn = db()
     if status:
         rows = conn.execute("SELECT * FROM orders WHERE status=? ORDER BY id DESC LIMIT ? OFFSET ?",
-                             (status, limit, offset)).fetchall()
+                           (status, limit, offset)).fetchall()
     else:
         rows = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
     conn.close()
@@ -227,7 +189,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     data = query.data
-    user = query.from_user
 
     if data == "menu":
         await query.answer()
@@ -354,7 +315,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("⛔️ Bu buyruq faqat adminlar uchun.")
         return
     await update.message.reply_text("🛠 *Admin panel — Bot do'koni*\n\nBo'limni tanlang:",
-                                     parse_mode="Markdown", reply_markup=admin_menu_kb())
+                                    parse_mode="Markdown", reply_markup=admin_menu_kb())
 
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -366,7 +327,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if data == "a_menu":
         await query.edit_message_text("🛠 *Admin panel — Bot do'koni*\n\nBo'limni tanlang:",
-                                       parse_mode="Markdown", reply_markup=admin_menu_kb())
+                                      parse_mode="Markdown", reply_markup=admin_menu_kb())
         return ConversationHandler.END
 
     if data == "a_stats":
@@ -400,7 +361,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if not p:
             await query.edit_message_text("Topilmadi.", reply_markup=back_kb("a_menu"))
             return ConversationHandler.END
-        text = f"🤖 *{p['name']}*\n\n{p['description']}\n\n💰 {fmt_price(p['price'])}\nHolat: {'🟢 Faol' if p['active'] else '🔴 O\u2018chirilgan'}"
+        text = f"🤖 *{p['name']}*\n\n{p['description']}\n\n💰 {fmt_price(p['price'])}\nHolat: {'🟢 Faol' if p['active'] else '🔴 O‘chirilgan'}"
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("🗑 O'chirish", callback_data=f"a_prod_del_{pid}")],
             [InlineKeyboardButton("⬅️ Ro'yxatga qaytish", callback_data="a_prod_list")],
@@ -464,4 +425,65 @@ async def prod_name_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return PROD_PRICE
 
 async def prod_price_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    try
+    try:
+        price = int(update.message.text.strip())
+        context.user_data["new_prod_price"] = price
+        await update.message.reply_text("Tavsifini kiriting (mahsulot haqida ma'lumot):")
+        return PROD_DESC
+    except ValueError:
+        await update.message.reply_text("Iltimos, narxni faqat butun son ko'rinishida kiriting!")
+        return PROD_PRICE
+
+async def prod_desc_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    name = context.user_data.get("new_prod_name")
+    price = context.user_data.get("new_prod_price")
+    desc = update.message.text.strip()
+    
+    add_product(name, price, desc)
+    await update.message.reply_text("✅ Mahsulot muvaffaqiyatli qo'shildi!", reply_markup=back_kb("a_menu"))
+    return ConversationHandler.END
+
+async def broadcast_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    msg = update.message.text
+    ids = all_customer_ids()
+    count = 0
+    for cid in ids:
+        try:
+            await context.bot.send_message(cid, msg)
+            count += 1
+        except Exception:
+            pass
+    await update.message.reply_text(f"📢 Xabar {count} ta mijozga yuborildi.", reply_markup=back_kb("a_menu"))
+    return ConversationHandler.END
+
+# ================= ASOSIY DASTUR =================
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
+    
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("start", start),
+            CommandHandler("admin", admin_panel),
+            CallbackQueryHandler(shop_callback, pattern="^(menu|noop|p_view_|p_buy_)"),
+            CallbackQueryHandler(admin_callback, pattern="^a_"),
+        ],
+        states={
+            PROD_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, prod_name_receive)],
+            PROD_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, prod_price_receive)],
+            PROD_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, prod_desc_receive)],
+            BROADCAST_WAIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, broadcast_receive)],
+            ORDER_NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_note_receive)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    app.add_handler(conv_handler)
+    app.add_handler(CallbackQueryHandler(order_admin_callback, pattern="^(o_paid_|o_cancel_)"))
+    app.add_handler(CommandHandler("help", help_command))
+
+    init_db()
+    print("Bot ishga tushdi...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
