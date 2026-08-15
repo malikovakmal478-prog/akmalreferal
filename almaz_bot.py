@@ -1,7 +1,10 @@
 import logging
 import sqlite3
 import asyncio
-from datetime import datetime, date
+import os
+import threading
+from datetime import datetime, date, timezone
+from flask import Flask
 
 from telegram import (
     Update,
@@ -27,6 +30,17 @@ CURRENCY = "so'm"
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ================= FLASK (Render port talabini qondirish uchun) =================
+web_app = Flask(__name__)
+
+@web_app.route('/')
+def index():
+    return "Bot is running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    web_app.run(host="0.0.0.0", port=port)
+
 # ================= DATABASE =================
 def db():
     conn = sqlite3.connect(DB_PATH)
@@ -50,7 +64,7 @@ def init_db():
 
 def upsert_customer(user):
     conn = db()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     row = conn.execute("SELECT user_id FROM customers WHERE user_id=?", (user.id,)).fetchone()
     if row:
         conn.execute("UPDATE customers SET username=?, first_name=? WHERE user_id=?",
@@ -96,7 +110,7 @@ def delete_product(pid):
 
 def create_order(user_id, product, note=""):
     conn = db()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     cur = conn.execute(
         "INSERT INTO orders(user_id, product_id, product_name, price, note, status, created_at) VALUES(?,?,?,?,?,?,?)",
         (user_id, product["id"], product["name"], product["price"], note, "kutilmoqda", now))
@@ -457,7 +471,7 @@ async def broadcast_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_text(f"📢 Xabar {count} ta mijozga yuborildi.", reply_markup=back_kb("a_menu"))
     return ConversationHandler.END
 
-# ================= ASOSIY DASTUR (RENDER VA PYTHON 3.14 UCHUN MOSLASHTirilgan) =================
+# ================= ASOSIY DASTUR =================
 async def run():
     app = Application.builder().token(BOT_TOKEN).build()
     
@@ -499,6 +513,10 @@ async def run():
         await app.shutdown()
 
 def main():
+    # Flask serverini Render port talabini qondirish uchun alohida oqimda ishga tushiramiz
+    t = threading.Thread(target=run_flask, daemon=True)
+    t.start()
+
     try:
         asyncio.run(run())
     except (KeyboardInterrupt, SystemExit):
