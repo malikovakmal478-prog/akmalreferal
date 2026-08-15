@@ -1,5 +1,6 @@
 import logging
 import sqlite3
+import asyncio
 from datetime import datetime, date
 
 from telegram import (
@@ -456,8 +457,8 @@ async def broadcast_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_text(f"📢 Xabar {count} ta mijozga yuborildi.", reply_markup=back_kb("a_menu"))
     return ConversationHandler.END
 
-# ================= ASOSIY DASTUR =================
-def main():
+# ================= ASOSIY DASTUR (RENDER VA PYTHON 3.14 UCHUN MOSLASHTirilgan) =================
+async def run():
     app = Application.builder().token(BOT_TOKEN).build()
     
     conv_handler = ConversationHandler(
@@ -475,6 +476,7 @@ def main():
             ORDER_NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_note_receive)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False
     )
 
     app.add_handler(conv_handler)
@@ -483,7 +485,24 @@ def main():
 
     init_db()
     print("Bot ishga tushdi...")
-    app.run_polling()
+    
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    
+    stop_signal = asyncio.Future()
+    try:
+        await stop_signal
+    finally:
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
+
+def main():
+    try:
+        asyncio.run(run())
+    except (KeyboardInterrupt, SystemExit):
+        pass
 
 if __name__ == "__main__":
     main()
