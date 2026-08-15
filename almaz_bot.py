@@ -10,7 +10,7 @@ BOT_TOKEN = '8846688801:AAHLab-JBdYuNkq2shGUYACD7hW_TkByvf4'
 ADMIN_ID = 7849637859  # Sizning Telegram ID raqamingiz
 
 # Majburiy obuna kanallari
-CHANNELS = ['@ffuzbkzorg', '@DIMA_almazlar', '@d1ma_sultanov', '@arzon_almazbor']
+CHANNELS = ['@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor']
 PAYMENTS_CHANNEL = '@ffuzbkzorg'
 MIN_WITHDRAW = 210
 REF_BONUS = 5
