@@ -31,7 +31,7 @@ def home():
 conn = sqlite3.connect('database.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                 (user_id INTEGER PRIMARY KEY, balance INTEGER, referrals INTEGER, ff_id TEXT, points INTEGER, last_bonus TEXT, last_spin TEXT)''')
+                 (user_id INTEGER PRIMARY KEY, balance INTEGER, referrals INTEGER, ff_id TEXT, points INTEGER, last_bonus TEXT, last_spin TEXT, task_sub TEXT)''')
 conn.commit()
 
 user_states = {}
@@ -79,7 +79,7 @@ def start_command(message):
     user = cursor.fetchone()
     
     if not user:
-        cursor.execute("INSERT INTO users (user_id, balance, referrals, ff_id, points, last_bonus, last_spin) VALUES (?, ?, ?, ?, ?, ?, ?)", (user_id, 0, 0, "Kiritilmagan", 0, "", ""))
+        cursor.execute("INSERT INTO users (user_id, balance, referrals, ff_id, points, last_bonus, last_spin, task_sub) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (user_id, 0, 0, "Kiritilmagan", 0, "", "", ""))
         conn.commit()
         
         if len(message.text.split()) > 1:
@@ -246,12 +246,15 @@ def handle_text(message):
             f"Quyidagi usullar orqali bepul almaz ishishingiz mumkin:\n\n"
             f"1️⃣ **Do'stlarni taklif qilish:** Har bir do'stingiz uchun `{REF_BONUS}` tadan almaz beriladi!\n"
             f"🔗 Sizning havolangiz:\n{ref_link}\n\n"
+            f"2️⃣ **Kunlik Bonus:** Har kuni kilib bonus oling.\n"
+            f"3️⃣ **Qo'shimcha Zadaniya:** Homi kanalga obuna bo'lib 3 almaz oling!\n\n"
             f"👥 Taklif qilgan do'stlaringiz: `{user[1]}` ta\n"
             f"💎 Balansingiz: `{user[0]}` almaz"
         )
         
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("🎁 Kunlik Bonus Olish", callback_data="daily_bonus"))
+        markup.add(InlineKeyboardButton("✅ Zadaniyani bajarish (Obuna)", callback_data="do_task"))
         markup.add(InlineKeyboardButton("📢 Kanalga o'tish", url=f"https://t.me/{CHANNELS[0].replace('@', '')}"))
         
         bot.send_message(user_id, msg, parse_mode="Markdown", reply_markup=markup)
@@ -382,6 +385,37 @@ def daily_bonus_callback(call):
         conn.commit()
         try:
             bot.answer_callback_query(call.id, f"🎉 Tabriklaymiz! Kunlik bonus sifatida {bonus_amount} almaz berildi!", show_alert=True)
+        except:
+            pass
+
+@bot.callback_query_handler(func=lambda call: call.data == "do_task")
+def do_task_callback(call):
+    user_id = call.from_user.id
+    today = str(datetime.date.today())
+    
+    cursor.execute("SELECT task_sub FROM users WHERE user_id=?", (user_id,))
+    row = cursor.fetchone()
+    last_task = row[0] if row else ""
+    
+    if last_task == today:
+        try:
+            bot.answer_callback_query(call.id, "❌ Siz bu zadaniyani bugun bajargansiz! Ertaga qayta urinib ko'ring.", show_alert=True)
+        except:
+            pass
+        return
+
+    # Tekshiramiz
+    if check_sub(user_id):
+        task_reward = 3
+        cursor.execute("UPDATE users SET balance = balance + ?, task_sub = ? WHERE user_id=?", (task_reward, today, user_id))
+        conn.commit()
+        try:
+            bot.answer_callback_query(call.id, f"🎉 Tabriklaymiz! Zadaniya bajarildi va balansingizga {task_reward} almaz qo'shildi!", show_alert=True)
+        except:
+            pass
+    else:
+        try:
+            bot.answer_callback_query(call.id, "❌ Hali hamma kanallarga a'zo bo'lmadingiz! Avval obuna bo'ling.", show_alert=True)
         except:
             pass
 
