@@ -14,7 +14,7 @@ ADMIN_ID = 7915255052  # Sizning Telegram ID raqamingiz
 # Majburiy obuna kanallari
 CHANNELS = ['@d1ma_sultanov', '@ffuzbkzorg', '@zenfrix_freefire']
 PAYMENTS_CHANNEL = '@ffuzbkzorg'
-MIN_WITHDRAW = 210
+MIN_WITHDRAW = 450  # Minimal yechish miqdori 450 almaz qilindi
 REF_BONUS = 5
 SUPPORT_USERNAME = '@dima_org'
 YT_CHANNEL = '@dima_sultanov'
@@ -342,7 +342,7 @@ def handle_text(message):
     elif text == "⚙️ Telefonga Nastroyka":
         user_states[user_id] = 'waiting_settings'
         msg = ("Telefonga mos Free Fire sozlamalari\n\n"
-               "Telefon modelingizni kiriting (Masalan: Redmi note 13 pro):")
+               "Telefonmodelingizni kiriting (Masalan: Redmi note 13 pro):")
         bot.send_message(user_id, msg)
         
     elif text == "🎰 Spin":
