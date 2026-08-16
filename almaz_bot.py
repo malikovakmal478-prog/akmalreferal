@@ -8,7 +8,7 @@ import datetime
 import random
 
 # ================= SOZLAMALAR =================
-BOT_TOKEN = '8797268340:AAGnXarxnNnwXcnhzYQALFJ3jtbfLrRd0N0'
+BOT_TOKEN = '8797268340:AAGMNCFdfd6fqxZyMarM6vCArxvp6KxYtu0'
 ADMIN_ID = 7915255052  # Sizning Telegram ID raqamingiz
 
 # Majburiy obuna kanallari
