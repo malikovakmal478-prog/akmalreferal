@@ -88,7 +88,7 @@ def start_command(message):
                 cursor.execute("UPDATE users SET balance = balance + ?, referrals = referrals + 1, points = points + 10 WHERE user_id = ?", (REF_BONUS, int(ref_id)))
                 conn.commit()
                 try:
-                    bot.send_message(int(ref_id), f"🎉 Tabriklaymiz! Referal orqali do'stingiz kirdi va sizga {REF_BONUS} almaz berildi!")
+                    bot.send_message(int(ref_id), f"Tabriklaymiz! Referal orqali do'stingiz kirdi va sizga {REF_BONUS} almaz berildi!")
                 except:
                     pass
 
@@ -96,17 +96,17 @@ def start_command(message):
         markup = InlineKeyboardMarkup()
         for ch in CHANNELS:
             markup.add(InlineKeyboardButton(f"Kanalga a'zo bo'lish ({ch})", url=f"https://t.me/{ch.replace('@', '')}"))
-        markup.add(InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub"))
-        bot.send_message(user_id, "⚠️ Botdan foydalanish uchun quyidagi barcha kanallarga a'zo bo'lishingiz shart!", reply_markup=markup)
+        markup.add(InlineKeyboardButton("Tekshirish", callback_data="check_sub"))
+        bot.send_message(user_id, "Botdan foydalanish uchun quyidagi barcha kanallarga a'zo bo'lishingiz shart!", reply_markup=markup)
         return
 
-    bot.send_message(user_id, "🏡 Bosh menyuga xush kelibsiz 👇", reply_markup=main_menu(user_id))
+    bot.send_message(user_id, "Bosh menyuga xush kelibsiz 👇", reply_markup=main_menu(user_id))
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_sub")
 def verify_sub(call):
     if check_sub(call.from_user.id):
         try:
-            bot.answer_callback_query(call.id, "Obuna tasdiqlandi! ✅")
+            bot.answer_callback_query(call.id, "Obuna tasdiqlandi!")
         except:
             pass
         bot.send_message(call.from_user.id, "Quyidagi menyudan kerakli bo'limni tanlang 👇", reply_markup=main_menu(call.from_user.id))
@@ -121,7 +121,7 @@ def handle_text(message):
     user_id = message.from_user.id
     
     if not check_sub(user_id):
-        bot.send_message(user_id, "⚠️ Botdan foydalanish uchun avval barcha kanallarga a'zo bo'ling!")
+        bot.send_message(user_id, "Botdan foydalanish uchun avval barcha kanallarga a'zo bo'ling!")
         return
 
     text = message.text
@@ -133,29 +133,29 @@ def handle_text(message):
             user_states.pop(user_id, None)
             cursor.execute("UPDATE users SET ff_id = ? WHERE user_id = ?", (text, user_id))
             conn.commit()
-            bot.send_message(user_id, f"✅ Free Fire ID muvaffaqiyatli saqlandi: **{text}**", parse_mode="Markdown", reply_markup=main_menu(user_id))
+            bot.send_message(user_id, f"Free Fire ID muvaffaqiyatli saqlandi: {text}", reply_markup=main_menu(user_id))
             return
         elif state == 'waiting_settings':
             user_states.pop(user_id, None)
             settings_result = (
-                f"⚙️ **{text} uchun Free Fire Sozlamalari:**\n\n"
-                f"• **General (Umumiy):** 95 - 98%\n"
-                f"• **Red Dot (Qizil nuqta):** 90 - 94%\n"
-                f"• **2X Scope:** 88 - 92%\n"
-                f"• **4X Scope:** 90 - 95%\n"
-                f"• **AWM Scope:** 50 - 65%\n"
-                f"• **DPI:** 540 - 580\n"
-                f"• **Otish tugmasi o'lchami:** 45% - 48%\n\n"
-                f"Ushbu sozlamalarni o'yinda sinab ko'ring va o'zingizga qarab moslang!"
+                f"{text} uchun Free Fire Sozlamalari:\n\n"
+                "• General (Umumiy): 95 - 98%\n"
+                "• Red Dot (Qizil nuqta): 90 - 94%\n"
+                "• 2X Scope: 88 - 92%\n"
+                "• 4X Scope: 90 - 95%\n"
+                "• AWM Scope: 50 - 65%\n"
+                "• DPI: 540 - 580\n"
+                "• Otish tugmasi o'lchami: 45% - 48%\n\n"
+                "Ushbu sozlamalarni o'yinda sinab ko'ring va o'zingizga qarab moslang!"
             )
-            bot.send_message(user_id, settings_result, parse_mode="Markdown", reply_markup=main_menu(user_id))
+            bot.send_message(user_id, settings_result, reply_markup=main_menu(user_id))
             return
         elif state == 'waiting_ai_chat':
             user_states.pop(user_id, None)
             ai_answers = [
-                f"🤖 AI javobi: '{text}' bo'yicha Free Fire'da yaxshiroq natijaga erishish uchun doimiy ravishda trenirovka rejimida mashq qiling!",
-                f"🤖 AI maslahati: O'yin davomida internet tezligi va qulay DPI muhim rol o'ynaydi. Savolingiz bo'yicha {SUPPORT_USERNAME} ga murojaat qilsangiz ham bo'ladi.",
-                f"🤖 AI tahlili: Bu savol bo'yicha tajribali o'yinchilar bilan maslahatlashish yaxshiroq natija beradi!"
+                f"AI javobi: '{text}' bo'yicha Free Fire'da yaxshiroq natijaga erishish uchun doimiy ravishda trenirovka rejimida mashq qiling!",
+                f"AI maslahati: O'yin davomida internet tezligi va qulay DPI muhim rol o'ynaydi. Savolingiz bo'yicha {SUPPORT_USERNAME} ga murojaat qilsangiz ham bo'ladi.",
+                "AI tahlili: Bu savol bo'yicha tajribali o'yinchilar bilan maslahatlashish yaxshiroq natija beradi!"
             ]
             bot.send_message(user_id, random.choice(ai_answers), reply_markup=main_menu(user_id))
             return
@@ -170,7 +170,7 @@ def handle_text(message):
                     success += 1
                 except:
                     pass
-            bot.send_message(user_id, f"✅ Xabar {success} ta foydalanuvchiga yuborildi!", reply_markup=admin_menu())
+            bot.send_message(user_id, f"Xabar {success} ta foydalanuvchiga yuborildi!", reply_markup=admin_menu())
             return
         elif state == 'waiting_user_balance':
             user_states.pop(user_id, None)
@@ -180,57 +180,61 @@ def handle_text(message):
                 amount = int(parts[1])
                 cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, target_uid))
                 conn.commit()
-                bot.send_message(user_id, f"✅ Foydalanuvchi ({target_uid}) balansiga {amount} almaz qo'shildi/ayirildi!", reply_markup=admin_menu())
-                bot.send_message(target_uid, f"💎 Admin tomonidan balansingizga {amount} almaz o'zgartirildi!")
+                bot.send_message(user_id, f"Foydalanuvchi ({target_uid}) balansiga {amount} almaz qo'shildi/ayirildi!", reply_markup=admin_menu())
+                bot.send_message(target_uid, f"Admin tomonidan balansingizga {amount} almaz o'zgartirildi!")
             except:
-                bot.send_message(user_id, "❌ Xato format! Qaytadan urinib ko'ring (Masalan: 123456789 50)", reply_markup=admin_menu())
+                bot.send_message(user_id, "Xato format! Qaytadan urinib ko'ring (Masalan: 123456789 50)", reply_markup=admin_menu())
             return
         elif isinstance(state, dict):
             if state['step'] == 'waiting_age':
                 user_states[user_id] = {'age': text, 'step': 'waiting_level'}
-                bot.send_message(user_id, "🎮 Free Fire darajangiz (LEVEL) nechi?")
+                bot.send_message(user_id, "Free Fire darajangiz (LEVEL) nechi?")
                 return
             elif state['step'] == 'waiting_level':
                 user_states[user_id]['level'] = text
                 user_states[user_id]['step'] = 'waiting_gender'
-                bot.send_message(user_id, "👤 O'g'il bolamisiz yoki qiz?")
+                bot.send_message(user_id, "O'g'il bolamisiz yoki qiz?")
                 return
             elif state['step'] == 'waiting_gender':
                 gender = text
                 data = user_states.pop(user_id, None)
                 username_str = f"@{message.from_user.username}" if message.from_user.username else "Mavjud emas"
-                msg = (f"🔍 Sizga mos do'st topildi!\n\n"
-                       f"🎂 Yoshi: {data['age']}\n"
-                       f"🎮 FF Level: {data['level']}\n"
-                       f"👤 Jinsi: {gender}\n"
-                       f"🔗 Murojaat uchun: {username_str}")
+                msg = (f"Sizga mos do'st topildi!\n\n"
+                       f"Yoshi: {data['age']}\n"
+                       f"FF Level: {data['level']}\n"
+                       f"Jinsi: {gender}\n"
+                       f"Murojaat uchun: {username_str}")
                 bot.send_message(user_id, msg)
                 bot.send_message(user_id, "Bosh menyudasiz 👇", reply_markup=main_menu(user_id))
                 return
 
     cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
     user = cursor.fetchone()
+    if not user:
+        cursor.execute("INSERT INTO users (user_id, balance, referrals, ff_id, points, last_bonus, last_spin, task_sub) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (user_id, 0, 0, "Kiritilmagan", 0, "", "", ""))
+        conn.commit()
+        user = (0, 0, "Kiritilmagan", 0)
     
     # Admin panel tugmalari
     if user_id == ADMIN_ID:
         if text == "🛠 Admin Panel":
-            bot.send_message(user_id, "🛠 Admin paneliga xush kelibsiz:", reply_markup=admin_menu())
+            bot.send_message(user_id, "Admin paneliga xush kelibsiz:", reply_markup=admin_menu())
             return
         elif text == "🔙 Bosh menyu":
-            bot.send_message(user_id, "🏡 Bosh menyu:", reply_markup=main_menu(user_id))
+            bot.send_message(user_id, "Bosh menyu:", reply_markup=main_menu(user_id))
             return
         elif text == "📊 Statistika":
             cursor.execute("SELECT COUNT(*) FROM users")
             total_users = cursor.fetchone()[0]
-            bot.send_message(user_id, f"📊 Bot statistikasi:\n\n👥 Jami foydalanuvchilar: `{total_users}` ta", parse_mode="Markdown", reply_markup=admin_menu())
+            bot.send_message(user_id, f"Bot statistikasi:\n\nJami foydalanuvchilar: {total_users} ta", reply_markup=admin_menu())
             return
         elif text == "📢 Xabar yuborish":
             user_states[user_id] = 'waiting_broadcast'
-            bot.send_message(user_id, "📢 Barcha foydalanuvchilarga yubormoqchi bo'lgan xabaringizni kiriting:", reply_markup=admin_menu())
+            bot.send_message(user_id, "Barcha foydalanuvchilarga yubormoqchi bo'lgan xabaringizni kiriting:", reply_markup=admin_menu())
             return
         elif text == "💎 Almaz berish/ayirish":
             user_states[user_id] = 'waiting_user_balance'
-            bot.send_message(user_id, "🆔 Foydalanuvchi ID raqami va almaz miqdorini bo'sh joy qoldirib yozing (Masalan: 7915255052 50 yoki -20):", reply_markup=admin_menu())
+            bot.send_message(user_id, "Foydalanuvchi ID raqami va almaz miqdorini bo'sh joy qoldirib yozing (Masalan: 7915255052 50 yoki -20):", reply_markup=admin_menu())
             return
 
     if text == "💎 Almaz ishlash":
@@ -242,14 +246,14 @@ def handle_text(message):
         ref_link = f"https://t.me/{bot_username}?start={user_id}"
         
         msg = (
-            f"💎 **Almaz ishlash bo'limi**\n\n"
+            f"Almaz ishlash bo'limi\n\n"
             f"Quyidagi usullar orqali bepul almaz ishishingiz mumkin:\n\n"
-            f"1️⃣ **Do'stlarni taklif qilish:** Har bir do'stingiz uchun `{REF_BONUS}` tadan almaz beriladi!\n"
-            f"🔗 Sizning havolangiz:\n{ref_link}\n\n"
-            f"2️⃣ **Kunlik Bonus:** Har kuni kilib bonus oling.\n"
-            f"3️⃣ **Qo'shimcha Zadaniya:** Homi kanalga obuna bo'lib 3 almaz oling!\n\n"
-            f"👥 Taklif qilgan do'stlaringiz: `{user[1]}` ta\n"
-            f"💎 Balansingiz: `{user[0]}` almaz"
+            f"1️⃣ Do'stlarni taklif qilish: Har bir do'stingiz uchun {REF_BONUS} tadan almaz beriladi!\n"
+            f"Sizning havolangiz:\n{ref_link}\n\n"
+            f"2️⃣ Kunlik Bonus: Har kuni kirib bonus oling.\n"
+            f"3️⃣ Qo'shimcha Zadaniya: Homi kanalga obuna bo'lib almaz oling!\n\n"
+            f"Taklif qilgan do'stlaringiz: {user[1]} ta\n"
+            f"Balansingiz: {user[0]} almaz"
         )
         
         markup = InlineKeyboardMarkup()
@@ -257,7 +261,7 @@ def handle_text(message):
         markup.add(InlineKeyboardButton("✅ Zadaniyani bajarish (Obuna)", callback_data="do_task"))
         markup.add(InlineKeyboardButton("📢 Kanalga o'tish", url=f"https://t.me/{CHANNELS[0].replace('@', '')}"))
         
-        bot.send_message(user_id, msg, parse_mode="Markdown", reply_markup=markup)
+        bot.send_message(user_id, msg, reply_markup=markup)
         
     elif text == "🤝 Sheriklar":
         try:
@@ -266,12 +270,12 @@ def handle_text(message):
         except:
             bot_username = "bot"
         ref_link = f"https://t.me/{bot_username}?start={user_id}"
-        msg = (f"🤝 **Sheriklar (Referal tizimi)**\n\n"
-               f"👥 Taklif qilgan do'stlaringiz: {user[1]} ta\n"
-               f"💎 Balansingiz: {user[0]} almaz\n\n"
-               f"🔗 **Sizning referal havolangiz:**\n{ref_link}\n\n"
+        msg = (f"Sheriklar (Referal tizimi)\n\n"
+               f"Taklif qilgan do'stlaringiz: {user[1]} ta\n"
+               f"Balansingiz: {user[0]} almaz\n\n"
+               f"Sizning referal havolangiz:\n{ref_link}\n\n"
                f"Har bir taklif qilingan do'st uchun {REF_BONUS} almaz qo'shiladi!")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        bot.send_message(user_id, msg)
         
     elif text == "🤝 Sherik Topish":
         user_states[user_id] = {'step': 'waiting_age'}
@@ -279,67 +283,67 @@ def handle_text(message):
         
     elif text == "🛒 O'yin Do'koni":
         shop_text = (
-            "🛒 **O'yin Do'koni - Almaz Narxlari**\n\n"
-            "110 💎 | 11 999 SO`M🇺🇿 | 78💸🇷🇺\nBONUS 🎁 BILAN | 180 💎\n\n"
-            "220 💎 | 23 999 SO`M🇺🇿 | 155💸🇷🇺\nBONUS 🎁 BILAN | 290 💎\n\n"
-            "341 💎 | 35 999 SO`M🇺🇿 | 235💸🇷🇺\nBONUS 🎁 BILAN | 559 💎\n\n"
-            "451 💎 | 47 999 SO`M🇺🇿 | 310💸🇷🇺\nBONUS 🎁 BILAN | 664 💎\n\n"
-            "572 💎 | 59 999 SO`M🇺🇿 | 390💸🇷🇺\nBONUS 🎁 BILAN | 936 💎\n\n"
-            "1 166 💎 | 111 999 SO`M🇺🇿 | 780 🇷🇺\nBONUS 🎁 BILAN | 1908 💎\n\n"
-            "2 398 💎 | 222 222 SO`M🇺🇿 | 1560💸🇷🇺\nBONUS 🎁 BILAN | 4 247 💎\n\n"
-            "6 160 💎 | 555 555 SO`M🇺🇿 | 3510💸🇷🇺\nBONUS 🎁 BILAN | 10 360 💎\n\n"
-            "12 320 💎 | 1 111 111 SO`M🇺🇿 | 6870💸🇷🇺\nBONUS 🫴 BILAN | 15 960 💎\n\n"
-            "💙 **LVL UP PASS** — 70 000 SO`M💎\n\n"
-            "💎 **VAUCHER Almaz**\n"
-            "💳 OYLIK VAUCHER — 99 999 SO`M\n"
-            "💳 Haftalik Vaucher — 20 000 SO`M\n"
-            "💳 LITE VAUCHER — 7 777 SO`M\n\n"
+            "O'yin Do'koni - Almaz Narxlari\n\n"
+            "110 💎 | 11 999 SO'M | 78 RUB\nBONUS BILAN | 180 💎\n\n"
+            "220 💎 | 23 999 SO'M | 155 RUB\nBONUS BILAN | 290 💎\n\n"
+            "341 💎 | 35 999 SO'M | 235 RUB\nBONUS BILAN | 559 💎\n\n"
+            "451 💎 | 47 999 SO'M | 310 RUB\nBONUS BILAN | 664 💎\n\n"
+            "572 💎 | 59 999 SO'M | 390 RUB\nBONUS BILAN | 936 💎\n\n"
+            "1 166 💎 | 111 999 SO'M | 780 RUB\nBONUS BILAN | 1908 💎\n\n"
+            "2 398 💎 | 222 222 SO'M | 1560 RUB\nBONUS BILAN | 4 247 💎\n\n"
+            "6 160 💎 | 555 555 SO'M | 3510 RUB\nBONUS BILAN | 10 360 💎\n\n"
+            "12 320 💎 | 1 111 111 SO'M | 6870 RUB\nBONUS BILAN | 15 960 💎\n\n"
+            "LVL UP PASS — 70 000 SO'M\n\n"
+            "VAUCHER Almaz\n"
+            "OYLIK VAUCHER — 99 999 SO'M\n"
+            "Haftalik Vaucher — 20 000 SO'M\n"
+            "LITE VAUCHER — 7 777 SO'M\n\n"
             "Cheteldan ham solsangiz bo'ladi, rus kartalarimiz ham bor ❗️\n\n"
             f"SOTIB OLISH UCHUN MUROJAT ETASIZ: {SUPPORT_USERNAME} 💎"
         )
-        bot.send_message(user_id, shop_text, parse_mode="Markdown")
+        bot.send_message(user_id, shop_text)
         
     elif text == "📊 Profilim":
         league = "Bronze liga"
         if user[3] >= 50: league = "Silver liga"
         username_str = f"@{message.from_user.username}" if message.from_user.username else "Mavjud emas"
-        msg = (f"👤 **Profilingiz**\n\n"
-               f"👤 Username: {username_str}\n"
-               f"🎮 Free Fire ID: {user[2]}\n"
-               f"🏆 Liga: 🥉 {league}\n"
-               f"📊 Reyting ballari: {user[3]}\n"
-               f"💎 Almaz: {user[0]}\n"
-               f"🤝 Tasdiqlangan takliflar: {user[1]}\n\n"
+        msg = (f"Profilingiz\n\n"
+               f"Username: {username_str}\n"
+               f"Free Fire ID: {user[2]}\n"
+               f"Liga: 🥉 {league}\n"
+               f"Reyting ballari: {user[3]}\n"
+               f"Almaz: {user[0]}\n"
+               f"Tasdiqlangan takliflar: {user[1]}\n\n"
                f"Almazlaringizni istagan paytda yechib olishingiz mumkin 👇")
         
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("💳 Almazni yechish", callback_data="withdraw"),
                    InlineKeyboardButton("🆔 FF ID sozlash", callback_data="set_ffid"))
-        bot.send_message(user_id, msg, parse_mode="Markdown", reply_markup=markup)
+        bot.send_message(user_id, msg, reply_markup=markup)
         
     elif text == "🏆 Reyting":
         cursor.execute("SELECT user_id, balance FROM users ORDER BY balance DESC LIMIT 10")
         top_users = cursor.fetchall()
-        msg = "🏆 **Eng faol foydalanuvchilar reytingi:**\n\n"
+        msg = "Eng faol foydalanuvchilar reytingi:\n\n"
         for idx, row in enumerate(top_users, 1):
             msg += f"{idx}. ID: {row[0]} — 💎 {row[1]} almaz\n"
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        bot.send_message(user_id, msg)
         
     elif text == "👑 Mening darajam":
         points = user[3]
         next_ball = 50 - (points % 50)
-        msg = (f"📊 **Shaxsiy statistika:**\n"
+        msg = (f"Shaxsiy statistika:\n"
                f"• Tasdiqlangan takliflar: {user[1]}\n"
                f"• Joriy Almaz balansi: {user[0]}\n\n"
-               f"🎯 **Keyingi liga: Silver**\n"
+               f"Keyingi liga: Silver\n"
                f"Unga yetish uchun yana {next_ball} ball kerak.")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        bot.send_message(user_id, msg)
         
     elif text == "⚙️ Telefonga Nastroyka":
         user_states[user_id] = 'waiting_settings'
-        msg = ("⚙️ **Telefonga mos Free Fire sozlamalari**\n\n"
-               "📱 Telefon modelingizni kiriting (Masalan: Redmi note 13 pro):")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        msg = ("Telefonga mos Free Fire sozlamalari\n\n"
+               "Telefon modelingizni kiriting (Masalan: Redmi note 13 pro):")
+        bot.send_message(user_id, msg)
         
     elif text == "🎰 Spin":
         today = str(datetime.date.today())
@@ -348,19 +352,19 @@ def handle_text(message):
         last_spin = row[0] if row else ""
         
         if last_spin == today:
-            bot.send_message(user_id, "🎰 Siz bugungi spin imkoniyatidan foylangansiz! Ertaga qayta urinib ko'ring.")
+            bot.send_message(user_id, "Siz bugungi spin imkoniyatidan foylangansiz! Ertaga qayta urinib ko'ring.")
         else:
             won_amount = random.choice([1, 3, 5, 10])
             cursor.execute("UPDATE users SET balance = balance + ?, last_spin = ? WHERE user_id=?", (won_amount, today, user_id))
             conn.commit()
-            bot.send_message(user_id, f"🎰 Tabriklaymiz! Spin aylantirib **{won_amount} ta almaz** yutib oldingiz! 🎉")
+            bot.send_message(user_id, f"Tabriklaymiz! Spin aylantirib {won_amount} ta almaz yutib oldingiz!")
         
     elif text == "🤖 Sun'iy Intellekt":
         user_states[user_id] = 'waiting_ai_chat'
-        bot.send_message(user_id, "🤖 Sun'iy intellektga Free Fire bo'yicha savolingizni yozib yuboring:")
+        bot.send_message(user_id, "Sun'iy intellektga Free Fire bo'yicha savolingizni yozib yuboring:")
         
     elif text == "🎬 Youtuber Xizmatlari":
-        bot.send_message(user_id, f"🎬 Youtuber xizmatlari uchun murojaat qilishingiz mumkin bo'lgan kanal/admin: {YT_CHANNEL}")
+        bot.send_message(user_id, f"Youtuber xizmatlari uchun murojaat qilishingiz mumkin bo'lgan kanal/admin: {YT_CHANNEL}")
         
     elif text == "🆘 Yordam":
         bot.send_message(user_id, f"Murojaat va xizmatlar uchun admin: {SUPPORT_USERNAME}")
@@ -376,7 +380,7 @@ def daily_bonus_callback(call):
     
     if last_bonus == today:
         try:
-            bot.answer_callback_query(call.id, "❌ Siz bugungi bonusni allaqachon olgansiz! Ertaga qayta urinib ko'ring.", show_alert=True)
+            bot.answer_callback_query(call.id, "Siz bugungi bonusni allaqachon olgansiz! Ertaga qayta urinib ko'ring.", show_alert=True)
         except:
             pass
     else:
@@ -384,7 +388,7 @@ def daily_bonus_callback(call):
         cursor.execute("UPDATE users SET balance = balance + ?, last_bonus = ? WHERE user_id=?", (bonus_amount, today, user_id))
         conn.commit()
         try:
-            bot.answer_callback_query(call.id, f"🎉 Tabriklaymiz! Kunlik bonus sifatida {bonus_amount} almaz berildi!", show_alert=True)
+            bot.answer_callback_query(call.id, f"Tabriklaymiz! Kunlik bonus sifatida {bonus_amount} almaz berildi!", show_alert=True)
         except:
             pass
 
@@ -399,23 +403,22 @@ def do_task_callback(call):
     
     if last_task == today:
         try:
-            bot.answer_callback_query(call.id, "❌ Siz bu zadaniyani bugun bajargansiz! Ertaga qayta urinib ko'ring.", show_alert=True)
+            bot.answer_callback_query(call.id, "Siz bu zadaniyani bugun bajargansiz! Ertaga qayta urinib ko'ring.", show_alert=True)
         except:
             pass
         return
 
-    # Tekshiramiz
     if check_sub(user_id):
         task_reward = 3
         cursor.execute("UPDATE users SET balance = balance + ?, task_sub = ? WHERE user_id=?", (task_reward, today, user_id))
         conn.commit()
         try:
-            bot.answer_callback_query(call.id, f"🎉 Tabriklaymiz! Zadaniya bajarildi va balansingizga {task_reward} almaz qo'shildi!", show_alert=True)
+            bot.answer_callback_query(call.id, f"Tabriklaymiz! Zadaniya bajarildi va balansingizga {task_reward} almaz qo'shildi!", show_alert=True)
         except:
             pass
     else:
         try:
-            bot.answer_callback_query(call.id, "❌ Hali hamma kanallarga a'zo bo'lmadingiz! Avval obuna bo'ling.", show_alert=True)
+            bot.answer_callback_query(call.id, "Hali hamma kanallarga a'zo bo'lmadingiz! Avval obuna bo'ling.", show_alert=True)
         except:
             pass
 
@@ -427,7 +430,7 @@ def set_ffid_callback(call):
         bot.answer_callback_query(call.id)
     except:
         pass
-    bot.send_message(user_id, "🆔 Free Fire ID raqamingizni kiriting:")
+    bot.send_message(user_id, "Free Fire ID raqamingizni kiriting:")
 
 @bot.callback_query_handler(func=lambda call: call.data == "withdraw")
 def withdraw_callback(call):
@@ -438,25 +441,25 @@ def withdraw_callback(call):
     
     if bal < MIN_WITHDRAW:
         try:
-            bot.answer_callback_query(call.id, f"❌ Balansingiz yetarli emas! Minimal yechish {MIN_WITHDRAW} almaz.", show_alert=True)
+            bot.answer_callback_query(call.id, f"Balansingiz yetarli emas! Minimal yechish {MIN_WITHDRAW} almaz.", show_alert=True)
         except:
             pass
     else:
         markup = InlineKeyboardMarkup()
         markup.add(
-            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{user_id}_{bal}"),
-            InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{user_id}")
+            InlineKeyboardButton("Tasdiqlash", callback_data=f"approve_{user_id}_{bal}"),
+            InlineKeyboardButton("Rad etish", callback_data=f"reject_{user_id}")
         )
-        admin_msg = f"🔔 **Yangi yechish zayavkasi!**\n\nFoydalanuvchi ID: {user_id}\nMiqdor: {bal} almaz."
+        admin_msg = f"Yangi yechish zayavkasi!\n\nFoydalanuvchi ID: {user_id}\nMiqdor: {bal} almaz."
         try:
-            bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown", reply_markup=markup)
+            bot.send_message(ADMIN_ID, admin_msg, reply_markup=markup)
         except:
             pass
         
         cursor.execute("UPDATE users SET balance = 0 WHERE user_id=?", (user_id,))
         conn.commit()
         try:
-            bot.edit_message_text("⏳ Zayavkangiz adminga yuborildi. Kuting!", call.message.chat.id, call.message.message_id)
+            bot.edit_message_text("Zayavkangiz adminga yuborildi. Kuting!", call.message.chat.id, call.message.message_id)
         except:
             pass
 
@@ -472,25 +475,25 @@ def admin_approval(call):
     if action == "approve":
         amount = data[2]
         try:
-            bot.edit_message_text(f"✅ {target_user} ning so'rovi tasdiqlandi.", ADMIN_ID, call.message.message_id)
+            bot.edit_message_text(f"{target_user} ning so'rovi tasdiqlandi.", ADMIN_ID, call.message.message_id)
         except:
             pass
         try:
-            bot.send_message(target_user, f"🎉 Tabriklaymiz! Sizning {amount} almaz yechish so'rovingiz tasdiqlandi!")
+            bot.send_message(target_user, f"Tabriklaymiz! Sizning {amount} almaz yechish so'rovingiz tasdiqlandi!")
         except:
             pass
         try:
-            bot.send_message(PAYMENTS_CHANNEL, f"✅ **Yangi To'lov!**\n\nFoydalanuvchi ID: {target_user}\nMiqdor: {amount} almaz\nShuncha almaz tashlab berildi!", parse_mode="Markdown")
+            bot.send_message(PAYMENTS_CHANNEL, f"Yangi To'lov!\n\nFoydalanuvchi ID: {target_user}\nMiqdor: {amount} almaz\nShuncha almaz tashlab berildi!")
         except:
             pass
         
     elif action == "reject":
         try:
-            bot.edit_message_text(f"❌ {target_user} ning so'rovi rad etildi.", ADMIN_ID, call.message.message_id)
+            bot.edit_message_text(f"{target_user} ning so'rovi rad etildi.", ADMIN_ID, call.message.message_id)
         except:
             pass
         try:
-            bot.send_message(target_user, "❌ Almaz yechish so'rovingiz admin tomonidan rad etildi.")
+            bot.send_message(target_user, "Almaz yechish so'rovingiz admin tomonidan rad etildi.")
         except:
             pass
 
