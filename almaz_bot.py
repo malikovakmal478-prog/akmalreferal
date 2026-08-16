@@ -6,11 +6,11 @@ from flask import Flask
 import threading
 
 # ================= SOZLAMALAR =================
-BOT_TOKEN = '8846688801:AAHLab-JBdYuNkq2shGUYACD7hW_TkByvf4'
+BOT_TOKEN = '8797268340:AAGnXarxnNnwXcnhzYQALFJ3jtbfLrRd0N0'
 ADMIN_ID = 7915255052  # Sizning Telegram ID raqamingiz
 
 # Majburiy obuna kanallari
-CHANNELS = ['@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor', '@arzon_almazbor']
+CHANNELS = ['@d1ma_sultanov', '@ffuzbkzorg', '@ffuzbkzorg', '@zenfrix_freefire']
 PAYMENTS_CHANNEL = '@ffuzbkzorg'
 MIN_WITHDRAW = 210
 REF_BONUS = 5
