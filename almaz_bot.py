@@ -118,15 +118,6 @@ def verify_sub(call):
 def handle_text(message):
     user_id = message.from_user.id
     
-    # Foydalanuvchi bazada bor-yo'qligini tekshirib, yo'q bo'lsa qo'shamiz (xatolikni oldini olish uchun)
-    cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
-    user = cursor.fetchone()
-    if not user:
-        cursor.execute("INSERT INTO users (user_id, balance, referrals, ff_id, points) VALUES (?, ?, ?, ?, ?)", (user_id, 0, 0, "Kiritilmagan", 0))
-        conn.commit()
-        cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
-        user = cursor.fetchone()
-
     if not check_sub(user_id):
         bot.send_message(user_id, "⚠️ Botdan foydalanish uchun avval barcha kanallarga a'zo bo'ling!")
         return
@@ -164,7 +155,7 @@ def handle_text(message):
                 cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, target_uid))
                 conn.commit()
                 bot.send_message(user_id, f"✅ Foydalanuvchi ({target_uid}) balansiga {amount} almaz qo'shildi/ayirildi!", reply_markup=admin_menu())
-                bot.send_message(target_uid, f"💎 Admin tomonidan balansingizga {amount} almaz o'zgartirildi!")
+                bot.send_message(target_uid, f"💎 Admin tomonidan balansingizга {amount} almaz o'zgartirildi!")
             except:
                 bot.send_message(user_id, "❌ Xato format! Qaytadan urinib ko'ring (Masalan: 123456789 50)", reply_markup=admin_menu())
             return
@@ -181,15 +172,20 @@ def handle_text(message):
             elif state['step'] == 'waiting_gender':
                 gender = text
                 data = user_states.pop(user_id, None)
-                msg = (f"🔍 **Sizga mos do'st topildi!**\n\n"
+                username_str = f"@{message.from_user.username}" if message.from_user.username else "Mavjud emas"
+                msg = (f"🔍 Sizga mos do'st topildi!\n\n"
                        f"🎂 Yoshi: {data['age']}\n"
                        f"🎮 FF Level: {data['level']}\n"
                        f"👤 Jinsi: {gender}\n"
-                       f"🔗 Murojaat uchun: @{message.from_user.username or 'Mavjud emas'}")
-                bot.send_message(user_id, msg, parse_mode="Markdown")
+                       f"🔗 Murojaat uchun: {username_str}")
+                # Parse_mode olib tashlandi, bu xatolikning oldini oladi
+                bot.send_message(user_id, msg)
                 bot.send_message(user_id, "Bosh menyudasiz 👇", reply_markup=main_menu(user_id))
                 return
 
+    cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
+    user = cursor.fetchone()
+    
     # Admin panel tugmalari
     if user_id == ADMIN_ID:
         if text == "🛠 Admin Panel":
@@ -257,8 +253,9 @@ def handle_text(message):
     elif text == "📊 Profilim":
         league = "Bronze liga"
         if user[3] >= 50: league = "Silver liga"
+        username_str = f"@{message.from_user.username}" if message.from_user.username else "Mavjud emas"
         msg = (f"👤 **Profilingiz**\n\n"
-               f"👤 Username: @{message.from_user.username or 'Mavjud emas'}\n"
+               f"👤 Username: {username_str}\n"
                f"🎮 Free Fire ID: {user[2]}\n"
                f"🏆 Liga: 🥉 {league}\n"
                f"📊 Reyting ballari: {user[3]}\n"
@@ -324,14 +321,7 @@ def set_ffid_callback(call):
 def withdraw_callback(call):
     user_id = call.from_user.id
     cursor.execute("SELECT balance FROM users WHERE user_id=?", (user_id,))
-    res = cursor.fetchone()
-    if not res:
-        try:
-            bot.answer_callback_query(call.id, "❌ Avval /start buyrug'ini bosing!", show_alert=True)
-        except:
-            pass
-        return
-    bal = res[0]
+    bal = cursor.fetchone()[0]
     
     if bal < MIN_WITHDRAW:
         try:
