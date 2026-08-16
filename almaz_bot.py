@@ -7,7 +7,7 @@ import threading
 
 # ================= SOZLAMALAR =================
 BOT_TOKEN = '8797268340:AAGnXarxnNnwXcnhzYQALFJ3jtbfLrRd0N0'
-ADMIN_ID = 7915255052  # Sizning Telegram ID raqamingiz
+ADMIN_ID = 7915255052
 
 # Majburiy obuna kanallari
 CHANNELS = ['@d1ma_sultanov', '@ffuzbkzorg', '@zenfrix_freefire']
@@ -131,7 +131,7 @@ def handle_text(message):
             user_states.pop(user_id, None)
             cursor.execute("UPDATE users SET ff_id = ? WHERE user_id = ?", (text, user_id))
             conn.commit()
-            bot.send_message(user_id, f"✅ Free Fire ID muvaffaqiyatli saqlandi: **{text}**", parse_mode="Markdown", reply_markup=main_menu(user_id))
+            bot.send_message(user_id, f"✅ Free Fire ID muvaffaqiyatli saqlandi: {text}", reply_markup=main_menu(user_id))
             return
         elif state == 'waiting_broadcast':
             user_states.pop(user_id, None)
@@ -155,7 +155,7 @@ def handle_text(message):
                 cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, target_uid))
                 conn.commit()
                 bot.send_message(user_id, f"✅ Foydalanuvchi ({target_uid}) balansiga {amount} almaz qo'shildi/ayirildi!", reply_markup=admin_menu())
-                bot.send_message(target_uid, f"💎 Admin tomonidan balansingizга {amount} almaz o'zgartirildi!")
+                bot.send_message(target_uid, f"💎 Admin tomonidan balansingizga {amount} almaz o'zgartirildi!")
             except:
                 bot.send_message(user_id, "❌ Xato format! Qaytadan urinib ko'ring (Masalan: 123456789 50)", reply_markup=admin_menu())
             return
@@ -178,14 +178,19 @@ def handle_text(message):
                        f"🎮 FF Level: {data['level']}\n"
                        f"👤 Jinsi: {gender}\n"
                        f"🔗 Murojaat uchun: {username_str}")
-                # Parse_mode olib tashlandi, bu xatolikning oldini oladi
                 bot.send_message(user_id, msg)
                 bot.send_message(user_id, "Bosh menyudasiz 👇", reply_markup=main_menu(user_id))
                 return
 
+    # Foydalanuvchi ma'lumotlarini bazadan olish (xatolik chiqmasligi uchun tekshiruv bilan)
     cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
     user = cursor.fetchone()
     
+    if not user:
+        cursor.execute("INSERT INTO users (user_id, balance, referrals, ff_id, points) VALUES (?, ?, ?, ?, ?)", (user_id, 0, 0, "Kiritilmagan", 0))
+        conn.commit()
+        user = (0, 0, "Kiritilmagan", 0)
+
     # Admin panel tugmalari
     if user_id == ADMIN_ID:
         if text == "🛠 Admin Panel":
@@ -215,12 +220,12 @@ def handle_text(message):
         except:
             bot_username = "bot"
         ref_link = f"https://t.me/{bot_username}?start={user_id}"
-        msg = (f"💎 **Almaz ishlash & Referal**\n\n"
+        msg = (f"💎 Almaz ishlash & Referal\n\n"
                f"👥 Taklif qilgan do'stlaringiz: {user[1]} ta\n"
                f"💎 Balansingiz: {user[0]} almaz\n\n"
-               f"🔗 **Sizning referal havolangiz:**\n{ref_link}\n\n"
+               f"🔗 Sizning referal havolangiz:\n{ref_link}\n\n"
                f"Har bir taklif qilingan do'st uchun {REF_BONUS} almaz qo'shiladi!")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        bot.send_message(user_id, msg)
         
     elif text == "🤝 Sherik Topish":
         user_states[user_id] = {'step': 'waiting_age'}
@@ -228,33 +233,31 @@ def handle_text(message):
         
     elif text == "🛒 O'yin Do'koni":
         shop_text = (
-            "🛒 **O'yin Do'koni - Almaz Narxlari**\n\n"
-            "110 💎 | 11 999 SO`M🇺🇿 | 78💸🇷🇺\nBONUS 🎁 BILAN | 180 💎\n\n"
-            "220 💎 | 23 999 SO`M🇺🇿 | 155💸🇷🇺\nBONUS 🎁 BILAN | 290 💎\n\n"
-            "341 💎 | 35 999 SO`M🇺🇿 | 235💸🇷🇺\nBONUS 🎁 BILAN | 559 💎\n\n"
-            "451 💎 | 47 999 SO`M🇺🇿 | 310💸🇷🇺\nBONUS 🎁 BILAN | 664 💎\n\n"
-            "572 💎 | 59 999 SO`M🇺🇿 | 390💸🇷🇺\nBONUS 🎁 BILAN | 936 💎\n\n"
-            "1 166 💎 | 111 999 SO`M🇺🇿 | 780 🇷🇺\nBONUS 🎁 BILAN | 1908 💎\n\n"
-            "2 398 💎 | 222 222 SO`M🇺🇿 | 1560💸🇷🇺\nBONUS 🎁 BILAN | 4 247 💎\n\n"
-            "6 160 💎 | 555 555 SO`M🇺🇿 | 3510💸🇷🇺\nBONUS 🎁 BILAN | 10 360 💎\n\n"
-            "12 320 💎 | 1 111 111 SO`M🇺🇿 | 6870💸🇷🇺\nBONUS 🫴 BILAN | 15 960 💎\n\n"
-            "💙 **LVL UP PASS** — 70 000 SO`M💎\n\n"
-            "💎 **VAUCHER Almaz**\n"
-            "💳 OYLIK VAUCHER — 99 999 SO`M\n"
-            "💳 Haftalik Vaucher — 20 000 SO`M\n"
-            "💳 LITE VAUCHER — 7 777 SO`M\n\n"
+            "🛒 O'yin Do'koni - Almaz Narxlari\n\n"
+            "110 💎 | 11 999 SO'M | 78 RUB\nBONUS BILAN | 180 💎\n\n"
+            "220 💎 | 23 999 SO'M | 155 RUB\nBONUS BILAN | 290 💎\n\n"
+            "341 💎 | 35 999 SO'M | 235 RUB\nBONUS BILAN | 559 💎\n\n"
+            "451 💎 | 47 999 SO'M | 310 RUB\nBONUS BILAN | 664 💎\n\n"
+            "572 💎 | 59 999 SO'M | 390 RUB\nBONUS BILAN | 936 💎\n\n"
+            "1 166 💎 | 111 999 SO'M | 780 RUB\nBONUS BILAN | 1908 💎\n\n"
+            "2 398 💎 | 222 222 SO'M | 1560 RUB\nBONUS BILAN | 4 247 💎\n\n"
+            "6 160 💎 | 555 555 SO'M | 3510 RUB\nBONUS BILAN | 10 360 💎\n\n"
+            "12 320 💎 | 1 111 111 SO'M | 6870 RUB\nBONUS BILAN | 15 960 💎\n\n"
+            "💙 LVL UP PASS — 70 000 SO'M\n\n"
+            "💎 VAUCHER Almaz\n"
+            "💳 OYLIK VAUCHER — 99 999 SO'M\n"
+            "💳 Haftalik Vaucher — 20 000 SO'M\n"
+            "💳 LITE VAUCHER — 7 777 SO'M\n\n"
             "Cheteldan ham solsangiz bo'ladi, rus kartalarimiz ham bor ❗️\n\n"
-            f"SOTIB OLISH UCHUN MUROJAT ETASIZ: {SUPPORT_USERNAME} 💎\n\n"
-            "ALMAZ 💎 SOTIB OLASIZ\n\n"
-            f"{SUPPORT_USERNAME}"
+            f"SOTIB OLISH UCHUN MUROJAT ETASIZ: {SUPPORT_USERNAME} 💎"
         )
-        bot.send_message(user_id, shop_text, parse_mode="Markdown")
+        bot.send_message(user_id, shop_text)
         
     elif text == "📊 Profilim":
         league = "Bronze liga"
         if user[3] >= 50: league = "Silver liga"
         username_str = f"@{message.from_user.username}" if message.from_user.username else "Mavjud emas"
-        msg = (f"👤 **Profilingiz**\n\n"
+        msg = (f"👤 Profilingiz\n\n"
                f"👤 Username: {username_str}\n"
                f"🎮 Free Fire ID: {user[2]}\n"
                f"🏆 Liga: 🥉 {league}\n"
@@ -266,34 +269,34 @@ def handle_text(message):
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("💳 Almazni yechish", callback_data="withdraw"),
                    InlineKeyboardButton("🆔 FF ID sozlash", callback_data="set_ffid"))
-        bot.send_message(user_id, msg, parse_mode="Markdown", reply_markup=markup)
+        bot.send_message(user_id, msg, reply_markup=markup)
         
     elif text == "🏆 Reyting":
         cursor.execute("SELECT user_id, balance FROM users ORDER BY balance DESC LIMIT 10")
         top_users = cursor.fetchall()
-        msg = "🏆 **Eng faol foydalanuvchilar reytingi:**\n\n"
+        msg = "🏆 Eng faol foydalanuvchilar reytingi:\n\n"
         for idx, row in enumerate(top_users, 1):
             msg += f"{idx}. ID: {row[0]} — 💎 {row[1]} almaz\n"
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        bot.send_message(user_id, msg)
         
     elif text == "👑 Mening darajam":
         points = user[3]
         next_ball = 50 - (points % 50)
-        msg = (f"📊 **Shaxsiy statistika:**\n"
+        msg = (f"📊 Shaxsiy statistika:\n"
                f"• Tasdiqlangan takliflar: {user[1]}\n"
                f"• Joriy Almaz balansi: {user[0]}\n\n"
-               f"🎯 **Keyingi liga: Silver**\n"
+               f"🎯 Keyingi liga: Silver\n"
                f"Unga yetish uchun yana {next_ball} ball kerak.")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        bot.send_message(user_id, msg)
         
     elif text == "⚙️ Telefonga Nastroyka":
-        msg = ("⚙️ **Telefonga mos Free Fire sozlamalari**\n\n"
+        msg = ("⚙️ Telefonga mos Free Fire sozlamalari\n\n"
                "AI sizning qurilmangiz uchun ideal nastroykani yaratadi:\n"
                "• General / Red Dot / 2X / 4X / AWM\n"
                "• DPI tavsiyasi\n"
                "• Otish tugmasi o'lchami\n\n"
                "📱 Telefon modelini kiriting (Masalan: Redmi note 13 pro):")
-        bot.send_message(user_id, msg, parse_mode="Markdown")
+        bot.send_message(user_id, msg)
         
     elif text == "🎰 Spin":
         bot.send_message(user_id, "🎰 Spin ishlash uchun do'stlaringizni taklif qiling!")
@@ -321,7 +324,8 @@ def set_ffid_callback(call):
 def withdraw_callback(call):
     user_id = call.from_user.id
     cursor.execute("SELECT balance FROM users WHERE user_id=?", (user_id,))
-    bal = cursor.fetchone()[0]
+    row = cursor.fetchone()
+    bal = row[0] if row else 0
     
     if bal < MIN_WITHDRAW:
         try:
@@ -334,9 +338,9 @@ def withdraw_callback(call):
             InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{user_id}_{bal}"),
             InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{user_id}")
         )
-        admin_msg = f"🔔 **Yangi yechish zayavkasi!**\n\nFoydalanuvchi ID: {user_id}\nMiqdor: {bal} almaz."
+        admin_msg = f"🔔 Yangi yechish zayavkasi!\n\nFoydalanuvchi ID: {user_id}\nMiqdor: {bal} almaz."
         try:
-            bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown", reply_markup=markup)
+            bot.send_message(ADMIN_ID, admin_msg, reply_markup=markup)
         except:
             pass
         
@@ -367,7 +371,7 @@ def admin_approval(call):
         except:
             pass
         try:
-            bot.send_message(PAYMENTS_CHANNEL, f"✅ **Yangi To'lov!**\n\nFoydalanuvchi ID: {target_user}\nMiqdor: {amount} almaz\nShuncha almaz tashlab berildi!", parse_mode="Markdown")
+            bot.send_message(PAYMENTS_CHANNEL, f"✅ Yangi To'lov!\n\nFoydalanuvchi ID: {target_user}\nMiqdor: {amount} almaz\nShuncha almaz tashlab berildi!")
         except:
             pass
         
