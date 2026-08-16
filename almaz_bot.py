@@ -162,7 +162,7 @@ def handle_text(message):
         elif isinstance(state, dict):
             if state['step'] == 'waiting_age':
                 user_states[user_id] = {'age': text, 'step': 'waiting_level'}
-                bot.send_message(user_id, "🎮 Free Fire urvningiz (LEVEL) nechi?")
+                bot.send_message(user_id, "🎮 Free Fire darajangiz (LEVEL) nechi?")
                 return
             elif state['step'] == 'waiting_level':
                 user_states[user_id]['level'] = text
@@ -241,7 +241,7 @@ def handle_text(message):
             "💳 OYLIK VAUCHER — 99 999 SO`M\n"
             "💳 Haftalik Vaucher — 20 000 SO`M\n"
             "💳 LITE VAUCHER — 7 777 SO`M\n\n"
-            f"Cheteldan ham solsangiz bo'ladi, rus kartalarimiz ham bor ❗️\n\n"
+            "Cheteldan ham solsangiz bo'ladi, rus kartalarimiz ham bor ❗️\n\n"
             f"SOTIB OLISH UCHUN MUROJAT ETASIZ: {SUPPORT_USERNAME} 💎\n\n"
             "ALMAZ 💎 SOTIB OLASIZ\n\n"
             f"{SUPPORT_USERNAME}"
