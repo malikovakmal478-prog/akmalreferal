@@ -10,11 +10,11 @@ BOT_TOKEN = '8797268340:AAGnXarxnNnwXcnhzYQALFJ3jtbfLrRd0N0'
 ADMIN_ID = 7915255052  # Sizning Telegram ID raqamingiz
 
 # Majburiy obuna kanallari
-CHANNELS = ['@d1ma_sultanov', '@ffuzbkzorg', '@ffuzbkzorg', '@zenfrix_freefire']
+CHANNELS = ['@d1ma_sultanov', '@ffuzbkzorg', '@zenfrix_freefire']
 PAYMENTS_CHANNEL = '@ffuzbkzorg'
 MIN_WITHDRAW = 210
 REF_BONUS = 5
-SUPPORT_USERNAME = '@ruzvix'
+SUPPORT_USERNAME = '@dima_org'
 YT_CHANNEL = '@dima_sultanov'
 # ==============================================
 
@@ -29,7 +29,7 @@ def home():
 conn = sqlite3.connect('database.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                  (user_id INTEGER PRIMARY KEY, balance INTEGER, referrals INTEGER, ff_id TEXT, points INTEGER)''')
+                 (user_id INTEGER PRIMARY KEY, balance INTEGER, referrals INTEGER, ff_id TEXT, points INTEGER)''')
 conn.commit()
 
 user_states = {}
@@ -241,6 +241,7 @@ def handle_text(message):
             "💳 OYLIK VAUCHER — 99 999 SO`M\n"
             "💳 Haftalik Vaucher — 20 000 SO`M\n"
             "💳 LITE VAUCHER — 7 777 SO`M\n\n"
+            f"Cheteldan ham solsangiz bo'ladi, rus kartalarimiz ham bor ❗️\n\n"
             f"SOTIB OLISH UCHUN MUROJAT ETASIZ: {SUPPORT_USERNAME} 💎\n\n"
             "ALMAZ 💎 SOTIB OLASIZ\n\n"
             f"{SUPPORT_USERNAME}"
