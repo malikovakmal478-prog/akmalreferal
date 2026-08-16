@@ -118,6 +118,15 @@ def verify_sub(call):
 def handle_text(message):
     user_id = message.from_user.id
     
+    # Foydalanuvchi bazada bor-yo'qligini tekshirib, yo'q bo'lsa qo'shamiz (xatolikni oldini olish uchun)
+    cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        cursor.execute("INSERT INTO users (user_id, balance, referrals, ff_id, points) VALUES (?, ?, ?, ?, ?)", (user_id, 0, 0, "Kiritilmagan", 0))
+        conn.commit()
+        cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
+        user = cursor.fetchone()
+
     if not check_sub(user_id):
         bot.send_message(user_id, "⚠️ Botdan foydalanish uchun avval barcha kanallarga a'zo bo'ling!")
         return
@@ -181,9 +190,6 @@ def handle_text(message):
                 bot.send_message(user_id, "Bosh menyudasiz 👇", reply_markup=main_menu(user_id))
                 return
 
-    cursor.execute("SELECT balance, referrals, ff_id, points FROM users WHERE user_id=?", (user_id,))
-    user = cursor.fetchone()
-    
     # Admin panel tugmalari
     if user_id == ADMIN_ID:
         if text == "🛠 Admin Panel":
@@ -318,7 +324,14 @@ def set_ffid_callback(call):
 def withdraw_callback(call):
     user_id = call.from_user.id
     cursor.execute("SELECT balance FROM users WHERE user_id=?", (user_id,))
-    bal = cursor.fetchone()[0]
+    res = cursor.fetchone()
+    if not res:
+        try:
+            bot.answer_callback_query(call.id, "❌ Avval /start buyrug'ini bosing!", show_alert=True)
+        except:
+            pass
+        return
+    bal = res[0]
     
     if bal < MIN_WITHDRAW:
         try:
