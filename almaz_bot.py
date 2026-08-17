@@ -10,8 +10,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.exceptions import TelegramBadRequest
 
 # ⚙️ SOZLAMALAR
-BOT_TOKEN = "8797268340:AAHKZeECuiwZN3I3p2lnxbkJ9sUHu66dWf0"  # BotFather'dan olingan token
-ADMIN_ID = 7915255052  # O'zingizning Telegram ID raqamingizni kiriting
+BOT_TOKEN = "8846688801:AAHLab-JBdYuNkq2shGUYACD7hW_TkByvf4"  # BotFather'dan olingan token
+ADMIN_ID = 7849637859  # O'zingizning Telegram ID raqamingizni kiriting
 
 logging.basicConfig(level=logging.INFO)
 
