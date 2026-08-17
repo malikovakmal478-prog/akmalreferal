@@ -11,7 +11,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 # !!! SOZLAMALAR !!!
-API_TOKEN = "YANGI_BOT_TOKENINGIZNI_SHU_YERGA_QUYING"
+API_TOKEN = "8635436262:AAHdexSxyGVWNXHcAZ_EaNEvzt4zzqFFh70"
 ADMIN_CARD = "5440810319904917"
 ADMIN_USERNAME = "Akmaljon1100"  # '@' belgisiz yozing
 
