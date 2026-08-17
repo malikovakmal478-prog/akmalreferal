@@ -3,15 +3,15 @@ import logging
 import sqlite3
 import sys
 from datetime import datetime, timedelta
-from aiogram import Bot, Dispatcher, F, types
+from aiogram import Bot, Dispatcher, F, Router, types
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
-# !!! SHAXSIY MA'LUMOTLARINGIZNI SHU YERGA YOZING !!!
-API_TOKEN = "8635436262:AAHdexSxyGVWNXHcAZ_EaNEvzt4zzqFFh70"
+# !!! SOZLAMALAR !!!
+API_TOKEN = "YANGI_BOT_TOKENINGIZNI_SHU_YERGA_QUYING"
 ADMIN_CARD = "5440810319904917"
 ADMIN_USERNAME = "Akmaljon1100"  # '@' belgisiz yozing
 
@@ -90,6 +90,7 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
     try:
         sub_bot = Bot(token=token)
         sub_dp = Dispatcher()
+        router = Router()
 
         def get_settings():
             conn = sqlite3.connect("constructor.db")
@@ -112,7 +113,7 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 kb.adjust(1, 1)
                 return kb.as_markup(resize_keyboard=True)
 
-            @sub_dp.message(CommandStart())
+            @router.message(CommandStart())
             async def kino_start(message: types.Message):
                 settings = get_settings()
                 channel = settings[0]
@@ -122,9 +123,9 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                     kb.button(text="✅ Obunani tekshirish", callback_data="check_kino_sub")
                     await message.answer(f"⚠️ Botdan foydalanish uchun quyidagi kanalga obuna bo'ling:\n{channel}", reply_markup=kb.as_markup())
                     return
-                await message.answer("🎬 **Kino Botga xush kelibsiz!**\nKino kodini yuboring (Masalan: `30224030`):", reply_markup=kino_menu())
+                await message.answer("🎬 **Kino Botga xush kelibsiz!**\nKino kodini yuboring (Masalan: `30224030`):", reply_markup=kino_menu(), parse_mode="Markdown")
 
-            @sub_dp.callback_query(F.data == "check_kino_sub")
+            @router.callback_query(F.data == "check_kino_sub")
             async def check_kino_sub_cb(call: types.CallbackQuery):
                 settings = get_settings()
                 if await check_subscription(sub_bot, call.from_user.id, settings[0]):
@@ -132,8 +133,8 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 else:
                     await call.answer("❌ Hali kanalga a'zo bo'lmadingiz!", show_alert=True)
 
-            @sub_dp.message(F.text == "⚙️ Admin Panel")
-            @sub_dp.message(Command("admin"))
+            @router.message(F.text == "⚙️ Admin Panel")
+            @router.message(Command("admin"))
             async def kino_admin(message: types.Message):
                 if message.from_user.id != owner_id:
                     return
@@ -141,20 +142,20 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 kb.button(text="➕ Kino qo'shish", callback_data="add_movie")
                 kb.button(text="📢 Majburiy obuna sozlash", callback_data="set_sub")
                 kb.adjust(1)
-                await message.answer("🛠️ **Kino Bot Admin Paneli:**", reply_markup=kb.as_markup())
+                await message.answer("🛠️ **Kino Bot Admin Paneli:**", reply_markup=kb.as_markup(), parse_mode="Markdown")
 
-            @sub_dp.callback_query(F.data == "add_movie")
+            @router.callback_query(F.data == "add_movie")
             async def add_movie_start(call: types.CallbackQuery, state: FSMContext):
                 await state.set_state(MovieState.waiting_code)
                 await call.message.answer("Kino uchun kod kiriting (masalan: 30224030):")
 
-            @sub_dp.message(MovieState.waiting_code)
+            @router.message(MovieState.waiting_code)
             async def set_code(message: types.Message, state: FSMContext):
                 await state.update_data(m_code=message.text)
                 await state.set_state(MovieState.waiting_file)
                 await message.answer("Endi kinoning video faylini yuboring:")
 
-            @sub_dp.message(MovieState.waiting_file, F.video)
+            @router.message(MovieState.waiting_file, F.video)
             async def set_file(message: types.Message, state: FSMContext):
                 data = await state.get_data()
                 conn = sqlite3.connect("constructor.db")
@@ -162,15 +163,15 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 cursor.execute("INSERT INTO movies VALUES (?, ?, ?, ?)", (token, data['m_code'], message.video.file_id, message.caption or ""))
                 conn.commit()
                 conn.close()
-                await message.answer(f"✅ Kino saqlandi! Kodi: `{data['m_code']}`")
+                await message.answer(f"✅ Kino saqlandi! Kodi: `{data['m_code']}`", parse_mode="Markdown")
                 await state.clear()
 
-            @sub_dp.callback_query(F.data == "set_sub")
+            @router.callback_query(F.data == "set_sub")
             async def set_sub_channel(call: types.CallbackQuery, state: FSMContext):
                 await state.set_state(SettingsState.waiting_channel)
                 await call.message.answer("Majburiy obuna kanali usernamesini kiriting (masalan: @kanal_nomi):")
 
-            @sub_dp.message(SettingsState.waiting_channel)
+            @router.message(SettingsState.waiting_channel)
             async def save_sub_channel(message: types.Message, state: FSMContext):
                 conn = sqlite3.connect("constructor.db")
                 cursor = conn.cursor()
@@ -180,7 +181,7 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 await message.answer("✅ Majburiy obuna kanali yangilandi!")
                 await state.clear()
 
-            @sub_dp.message(F.text.isdigit())
+            @router.message(F.text.isdigit())
             async def get_movie(message: types.Message):
                 conn = sqlite3.connect("constructor.db")
                 cursor = conn.cursor()
@@ -203,7 +204,7 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 kb.adjust(2, 2)
                 return kb.as_markup(resize_keyboard=True)
 
-            @sub_dp.message(CommandStart())
+            @router.message(CommandStart())
             async def ref_start(message: types.Message):
                 settings = get_settings()
                 channel = settings[0]
@@ -228,13 +229,14 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                         bonus = settings[1]
                         cursor.execute("UPDATE ref_users SET balance = balance + ? WHERE bot_token = ? AND user_id = ?", (bonus, token, ref_id))
                         try:
-                            await sub_bot.send_message(ref_id, f"🎉 Do'stingiz qo'shildi! Sizga **{bonus} almos** berildi.")
-                        except: pass
+                            await sub_bot.send_message(ref_id, f"🎉 Do'stingiz qo'shildi! Sizga **{bonus} almos** berildi.", parse_mode="Markdown")
+                        except Exception:
+                            pass
                     conn.commit()
                 conn.close()
-                await message.answer("💎 **Referral Botga xush kelibsiz!**", reply_markup=ref_menu())
+                await message.answer("💎 **Referral Botga xush kelibsiz!**", reply_markup=ref_menu(), parse_mode="Markdown")
 
-            @sub_dp.callback_query(F.data == "check_ref_sub")
+            @router.callback_query(F.data == "check_ref_sub")
             async def check_ref_sub_cb(call: types.CallbackQuery):
                 settings = get_settings()
                 if await check_subscription(sub_bot, call.from_user.id, settings[0]):
@@ -242,8 +244,8 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 else:
                     await call.answer("❌ Hali kanalga a'zo bo'lmadingiz!", show_alert=True)
 
-            @sub_dp.message(F.text == "⚙️ Admin Panel")
-            @sub_dp.message(Command("admin"))
+            @router.message(F.text == "⚙️ Admin Panel")
+            @router.message(Command("admin"))
             async def ref_admin(message: types.Message):
                 if message.from_user.id != owner_id:
                     return
@@ -252,14 +254,14 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 kb.button(text="✏️ Min. yechishni o'zgartirish", callback_data="set_min_w")
                 kb.button(text="📢 Majburiy obuna sozlash", callback_data="set_ref_sub")
                 kb.adjust(1)
-                await message.answer(f"🛠️ **Referral Admin Paneli:**\n\n- Har bir taklif: {settings[1]} almos\n- Min. yechish: {settings[2]} almos", reply_markup=kb.as_markup())
+                await message.answer(f"🛠️ **Referral Admin Paneli:**\n\n- Har bir taklif: {settings[1]} almos\n- Min. yechish: {settings[2]} almos", reply_markup=kb.as_markup(), parse_mode="Markdown")
 
-            @sub_dp.callback_query(F.data == "set_min_w")
+            @router.callback_query(F.data == "set_min_w")
             async def set_min_w_start(call: types.CallbackQuery, state: FSMContext):
                 await state.set_state(SettingsState.waiting_min_withdraw)
                 await call.message.answer("Yangi minimal yechish miqdorini kiriting (masalan: 210):")
 
-            @sub_dp.message(SettingsState.waiting_min_withdraw)
+            @router.message(SettingsState.waiting_min_withdraw)
             async def save_min_w(message: types.Message, state: FSMContext):
                 if message.text.isdigit():
                     conn = sqlite3.connect("constructor.db")
@@ -272,12 +274,12 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 else:
                     await message.answer("Faqat raqam kiriting!")
 
-            @sub_dp.callback_query(F.data == "set_ref_sub")
+            @router.callback_query(F.data == "set_ref_sub")
             async def set_ref_sub(call: types.CallbackQuery, state: FSMContext):
                 await state.set_state(SettingsState.waiting_channel)
                 await call.message.answer("Kanal usernamesini kiriting (masalan: @kanal_nomi):")
 
-            @sub_dp.message(SettingsState.waiting_channel)
+            @router.message(SettingsState.waiting_channel)
             async def save_ref_sub(message: types.Message, state: FSMContext):
                 conn = sqlite3.connect("constructor.db")
                 cursor = conn.cursor()
@@ -287,14 +289,14 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 await message.answer("✅ Majburiy obuna kanali saqlandi!")
                 await state.clear()
 
-            @sub_dp.message(F.text == "🔗 Taklif havolam")
+            @router.message(F.text == "🔗 Taklif havolam")
             async def get_ref_link(message: types.Message):
                 me = await sub_bot.get_me()
                 settings = get_settings()
                 link = f"https://t.me/{me.username}?start={message.from_user.id}"
                 await message.answer(f"🔗 Havolangiz:\n`{link}`\n\nHar bir taklif: **{settings[1]} almos**", parse_mode="Markdown")
 
-            @sub_dp.message(F.text == "💎 Balans / Almoslar")
+            @router.message(F.text == "💎 Balans / Almoslar")
             async def show_bal(message: types.Message):
                 settings = get_settings()
                 conn = sqlite3.connect("constructor.db")
@@ -303,9 +305,9 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
                 row = cursor.fetchone()
                 bal = row[0] if row else 0
                 conn.close()
-                await message.answer(f"👤 Balansingiz: **{bal} almos**\nMin. yechish: **{settings[2]} almos**")
+                await message.answer(f"👤 Balansingiz: **{bal} almos**\nMin. yechish: **{settings[2]} almos**", parse_mode="Markdown")
 
-            @sub_dp.message(F.text == "📤 Pulni yechib olish")
+            @router.message(F.text == "📤 Pulni yechib olish")
             async def withdraw(message: types.Message):
                 settings = get_settings()
                 conn = sqlite3.connect("constructor.db")
@@ -317,13 +319,14 @@ async def start_user_bot(token: str, bot_type: str, owner_id: int):
 
                 if bal >= settings[2]:
                     await message.answer("✅ Yechib olish so'rovingiz adminga yuborildi.")
-                    await sub_bot.send_message(owner_id, f"📥 **Yechish so'rovi:**\nUser ID: {message.from_user.id}\nBalans: {bal} almos")
+                    await sub_bot.send_message(owner_id, f"📥 **Yechish so'rovi:**\nUser ID: {message.from_user.id}\nBalans: {bal} almos", parse_mode="Markdown")
                 else:
-                    await message.answer(f"❌ Kamida **{settings[2]} almos** kerak! (Sizda: {bal} almos)")
+                    await message.answer(f"❌ Kamida **{settings[2]} almos** kerak! (Sizda: {bal} almos)", parse_mode="Markdown")
 
+        sub_dp.include_router(router)
         await sub_dp.start_polling(sub_bot)
     except Exception as e:
-        print(f"Sub-botda xatolik: {e}")
+        print(f"Sub-botda ({token}) xatolik: {e}")
 
 # --- 3. ASOSIY KONSTRUKTOR BOT ---
 def main_menu():
@@ -343,16 +346,16 @@ async def cmd_start(message: types.Message):
 async def start_creation(message: types.Message, state: FSMContext):
     builder = InlineKeyboardBuilder()
     builder.button(text="🎬 Kodli Kino Bot", callback_data="tpl_Kodli Kino Bot")
-    builder.button(text="💎 Referral Bot (210 Min)", callback_data="tpl_Referral Bot")
+    builder.button(text="💎 Referral Bot", callback_data="tpl_Referral Bot")
     builder.adjust(1)
-    await message.answer("✨ **Yaratmoqchi bo'lgan bot turini tanlang:**", reply_markup=builder.as_markup())
+    await message.answer("✨ **Yaratmoqchi bo'lgan bot turini tanlang:**", reply_markup=builder.as_markup(), parse_mode="Markdown")
 
 @dp.callback_query(F.data.startswith("tpl_"))
 async def process_template(call: types.CallbackQuery, state: FSMContext):
     template_name = call.data.split("_", 1)[1]
     await state.update_data(bot_type=template_name)
     await state.set_state(BotCreation.entering_token)
-    await call.message.edit_text(f"🤖 **{template_name}** uchun @BotFather'dan olingan tokenini yuboring:")
+    await call.message.edit_text(f"🤖 **{template_name}** uchun @BotFather'dan olingan tokenini yuboring:", parse_mode="Markdown")
 
 @dp.message(BotCreation.entering_token)
 async def save_and_run_bot(message: types.Message, state: FSMContext):
