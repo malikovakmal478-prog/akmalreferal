@@ -397,7 +397,8 @@ async def my_bots(message: types.Message):
         return
     text = "📱 **Sizning botlaringiz:**\n\n"
     for i, b in enumerate(bots, 1):
-        text += f"{i}. **{b[0]}** — {'🟢 Faol' if b[2] else '🔴 To\'xtatilgan'}\n⏳ Sinov muddati: `{b[1][:16]}`\n\n"
+        status = '🟢 Faol' if b[2] else "🔴 To'xtatilgan"
+        text += f"{i}. **{b[0]}** — {status}\n⏳ Sinov muddati: `{b[1][:16]}`\n\n"
     await message.answer(text, parse_mode="Markdown")
 
 @dp.message(F.text == "💳 Obuna to'lovi")
