@@ -16,7 +16,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 # =====================================================================
 # 1. SOZLAMALAR
 # =====================================================================
-MAKER_TOKEN = "8635436262:AAHdexSxyGVWNXHcAZ_EaNEvzt4zzqFFh70"
+MAKER_TOKEN = "8635436262:AAGBGi5cb5HJ35ImcoJhp8NsJ6pWF-Onq0E"
 ADMIN_ID = 7849637859  # Admin Telegram IDingizni kiriting
 CARD_NUMBER = "5440 8103 1990 4917"
 CARD_HOLDER = "G/N"
