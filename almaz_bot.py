@@ -21,7 +21,7 @@ CARD_NUMBER = "5440 8103 1990 4917"
 CARD_HOLDER = "g/n"
 
 CREATE_PRICE = 39990
-RENEW_PRICE = 9990
+RENEW_PRICE = 11990
 EXPIRE_DAYS = 17
 
 maker_bot = Bot(token=MAKER_TOKEN)
@@ -115,7 +115,7 @@ for i in range(11, 101):
     BOT_TEMPLATES[i] = {"name": f"⚡ Pro Max Specialized Template #{i}", "cat": "Sanoat va Xizmatlar"}
 
 # =====================================================================
-# 5. MIJOZ BOTLARI UCHUN KO'P TIZIMLI (MULTIBOT) MOTOR
+# 5. MIJOZ BOTLARI MOTOR (BARCHA TUGMALAR TO'LIQ ISHLAYDI)
 # =====================================================================
 def init_client_db(db_id):
     conn = sqlite3.connect(f"client_data_{db_id}.db")
@@ -139,7 +139,7 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
         c_bot = Bot(token=token)
         c_dp = Dispatcher(storage=MemoryStorage())
         
-        # --- MIJOZ BOTI XIZMATLARI (SQL) ---
+        # --- BAZA BILAN ISHLASH ---
         def get_user(u_id):
             conn = sqlite3.connect(f"client_data_{db_id}.db")
             cursor = conn.cursor()
@@ -162,6 +162,14 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
             conn.close()
             return False
 
+        def get_top_users():
+            conn = sqlite3.connect(f"client_data_{db_id}.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT full_name, balance FROM users ORDER BY balance DESC LIMIT 10")
+            res = cursor.fetchall()
+            conn.close()
+            return res
+
         def get_all_users():
             conn = sqlite3.connect(f"client_data_{db_id}.db")
             cursor = conn.cursor()
@@ -177,7 +185,7 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
             conn.commit()
             conn.close()
 
-        # --- USER HANDLERLARI ---
+        # --- BARCHA BO'LIMLAR HANDLERLARI ---
         @c_dp.message(CommandStart())
         async def c_start(msg: types.Message):
             args = msg.text.split()
@@ -191,31 +199,74 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
             kb.button(text="🤝 Sherik Topish"); kb.button(text="🛒 O'yin Do'koni")
             kb.button(text="🎬 Youtuber Xizmatlari"); kb.button(text="🤖 Sun'iy Intellekt")
             
-            # Agar foydalanuvchi Bot Egasi bo'lsa Admin Panel tugmasini chiqarish
             if msg.from_user.id == owner_id:
                 kb.button(text="🔑 Admin Panel")
 
             kb.adjust(2, 1, 2, 2, 2, 1)
-            await msg.answer(f"👋 Salom {msg.from_user.full_name}!\n💎 **Botga xush kelibsiz!**", reply_markup=kb.as_markup(resize_keyboard=True))
+            await msg.answer(f"👋 Salom {msg.from_user.full_name}!\n💎 **Almaz Bot Pro Max** xush kelibsiz!", reply_markup=kb.as_markup(resize_keyboard=True))
 
         @c_dp.message(F.text == "💎 Almaz ishlash")
         async def c_almaz(msg: types.Message):
             me = await c_bot.get_me()
-            await msg.answer(f"💎 **Almaz ishlash**\n\nSizning havolangiz:\nhttps://t.me/{me.username}?start={msg.from_user.id}\n\nTaklif uchun: **5 almaz**")
+            await msg.answer(f"💎 **Almaz ishlash**\n\nSizning taklif havolangiz:\nhttps://t.me/{me.username}?start={msg.from_user.id}\n\nHar bir taklif qilgan do'stingiz uchun **5 almaz** beriladi!")
 
         @c_dp.message(F.text == "📊 Profilim")
         async def c_prof(msg: types.Message):
             u = get_user(msg.from_user.id)
             b, r, l = (u[0], u[1], u[2]) if u else (0, 0, "🥉 Boshlang'ich")
-            await msg.answer(f"📊 **Profil:**\n💎 Balans: {b}\n👥 Referallar: {r}\n👑 Daraja: {l}")
+            await msg.answer(f"📊 **Sizning Profilingiz:**\n\n👤 Ism: **{msg.from_user.full_name}**\n🆔 ID: `{msg.from_user.id}`\n💎 Balans: **{b} almaz**\n👥 Referallar: **{r} ta**\n👑 Darajangiz: **{l}**")
+
+        @c_dp.message(F.text == "⚙️ Telefonga Nastroyka")
+        async def c_settings(msg: types.Message):
+            await msg.answer("⚙️ **Telefonga Nastroyka Bo'limi:**\n\n🎮 Free Fire o'yini uchun eng yaxshi otish (otдача olib tashlash) va sezgirlik (чувствительность) sozlamalari sizning qurilmangizga moslashtirildi!")
+
+        @c_dp.message(F.text == "🤝 Sheriklar")
+        async def c_partners(msg: types.Message):
+            u = get_user(msg.from_user.id)
+            r = u[1] if u else 0
+            await msg.answer(f"🤝 **Sizning Sheriklaringiz:**\n\nSiz taklif qilgan jami do'stlar soni: **{r} ta**\nKo'proq do'st taklif qiling va bepul almazlarga ega bo'ling!")
+
+        @c_dp.message(F.text == "👑 Mening darajam")
+        async def c_level(msg: types.Message):
+            u = get_user(msg.from_user.id)
+            r = u[1] if u else 0
+            if r < 5:
+                lvl = "🥉 Boshlang'ich"
+            elif r < 20:
+                lvl = "🥈 Kumush O'yinchi"
+            elif r < 50:
+                lvl = "🥇 Oltin Chempion"
+            else:
+                lvl = "💎 Olmos Afsona"
+            await msg.answer(f"👑 **Darajangiz:** {lvl}\n\nKeyingi darajaga o'tish uchun ko'proq do'stlaringizni taklif qiling!")
+
+        @c_dp.message(F.text == "🏆 Reyting")
+        async def c_top(msg: types.Message):
+            top_users = get_top_users()
+            text = "🏆 **TOP 10 ENG BOY O'YINCHILAR:**\n\n"
+            for idx, user in enumerate(top_users, start=1):
+                text += f"{idx}. {user[0]} — **{user[1]} almaz**\n"
+            await msg.answer(text)
+
+        @c_dp.message(F.text == "🤝 Sherik Topish")
+        async def c_find_partner(msg: types.Message):
+            await msg.answer("🎯 **O'yin uchun Sherik Topish:**\n\nBirga Free Fire yoki PUBG o'ynash uchun o'zingizga munosib jamoadosh qidiryapsizmi? Telegram guruhimizga qo'shiling va sherik toping!")
 
         @c_dp.message(F.text == "🛒 O'yin Do'koni")
         async def c_shop(msg: types.Message):
             b = InlineKeyboardBuilder()
             b.button(text="👨‍💻 Admin bilan bog'lanish", url=f"https://t.me/{admin_user}")
-            await msg.answer("🛒 **Do'kon:**\n100 Almaz - 15,000 so'm", reply_markup=b.as_markup())
+            await msg.answer("🛒 **O'yin Do'koni:**\n\n💎 100 Almaz — 15,000 so'm\n💎 310 Almaz — 42,000 so'm\n💎 520 Almaz — 70,000 so'm\n\nXarid qilish uchun admin bilan bog'laning:", reply_markup=b.as_markup())
 
-        # --- ADMIN PANEL HANDLERLARI (FAQAT BOT EGASI UCHUN) ---
+        @c_dp.message(F.text == "🎬 Youtuber Xizmatlari")
+        async def c_yt(msg: types.Message):
+            await msg.answer("🎬 **Youtuberlar uchun Maxsus Xizmatlar:**\n\nKanalingizni rivojlantirish, obunachi yig'ish va video promo xizmatlari mavjud!")
+
+        @c_dp.message(F.text == "🤖 Sun'iy Intellekt")
+        async def c_ai(msg: types.Message):
+            await msg.answer("🤖 **Sun'iy Intellekt (AI):**\n\nAI yordamchisi orqali o'yiningiz uchun taktika yoki istalgan savolingizga tezkor javob oling!")
+
+        # --- ADMIN PANEL HANDLERLARI ---
         @c_dp.message(F.text == "🔑 Admin Panel")
         async def c_admin_panel(msg: types.Message):
             if msg.from_user.id != owner_id:
@@ -239,7 +290,7 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
         async def c_admin_broadcast(msg: types.Message, state: FSMContext):
             if msg.from_user.id != owner_id:
                 return
-            await msg.answer("📢 Barcha foydalanuvchilarga yubormoqchi bo'lgan xabaringizni yuboring:")
+            await msg.answer("📢 Barcha foydalanuvchilarga yubormoqchi bo'lgan xabaringizni kiriting:")
             await state.set_state(AdminBroadcastFSM.waiting_message)
 
         @c_dp.message(AdminBroadcastFSM.waiting_message)
@@ -290,10 +341,6 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
         @c_dp.message(F.text == "🔙 Bosh menyu")
         async def c_back(msg: types.Message):
             await c_start(msg)
-
-        @c_dp.message()
-        async def c_default(msg: types.Message):
-            await msg.answer("⚙️ Ushbu bo'lim faol holatda. Yaxshilash ishlari olib borilmoqda.")
 
         await c_dp.start_polling(c_bot)
 
@@ -427,10 +474,7 @@ async def approve_bot_creation(call: types.CallbackQuery):
         await call.answer("❌ Chek matnini ajratishda xatolik yuz berdi!", show_alert=True)
         return
 
-    # Bazaga qo'shish
     bot_db_id, expire_date = add_user_bot(owner_id, token, admin_user, template_id)
-    
-    # Yangi mijoz botini orqa fonda (async task) ishga tushirish
     asyncio.create_task(run_single_client_bot(bot_db_id, token, admin_user, template_id, owner_id))
     
     template_name = BOT_TEMPLATES.get(template_id, {}).get('name', f"Shablon #{template_id}")
@@ -454,14 +498,11 @@ async def reject_payment(call: types.CallbackQuery):
     await call.answer("Rad etildi!", show_alert=True)
 
 # =====================================================================
-# 7. OBUNA VA DASTURNI ISHGA TUSHIRISH
+# 7. DASTURNI ISHGA TUSHIRISH
 # =====================================================================
 async def main():
     init_db()
-    
-    # Render'da barcha mijoz botlarini bir vaqtda parallel yurgazish
     await start_all_user_bots()
-    
     print("PRO MAX Bot Constructor muvaffaqiyatli ishga tushdi...")
     await dp.start_polling(maker_bot)
 
