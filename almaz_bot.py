@@ -7,7 +7,7 @@ import re
 from datetime import datetime, timedelta
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -16,9 +16,14 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 # =====================================================================
 # 1. SOZLAMALAR VA RENDER PORTI
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAEmx_NdkOA1Ek9HaejFM2ivSpQplKUXz40")
-ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))  # Constructor Admin Telegram ID si
-CARD_NUMBER = os.environ.get("CARD_NUMBER", "5440 8103 1990 4917")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAEmx_NdkOA1Ek9HaejFM2ivSpQp1KUXz40")
+
+try:
+    ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
+except ValueError:
+    ADMIN_ID = 7849637859
+
+CARD_NUMBER = os.environ.get("CARD_NUMBER", "5440810319904917")
 CARD_HOLDER = os.environ.get("CARD_HOLDER", "g/n")
 
 CREATE_PRICE = 39990
@@ -30,7 +35,7 @@ PORT = int(os.environ.get("PORT", 8080))
 maker_bot = Bot(token=MAKER_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Mijoz botlarini boshqarish uchun dinamik dispatcher va botlar lug'ati
+# Mijoz botlarini boshqarish uchun dinamik botlar lug'ati
 client_bots = {}
 
 # =====================================================================
@@ -249,7 +254,7 @@ def build_client_dispatcher(db_id, admin_user, owner_id):
 
     @c_dp.message(F.text == "⚙️ Telefonga Nastroyka")
     async def c_settings(msg: types.Message):
-        await msg.answer("⚙️ **Telefonga Nastroyka Bo'limi:**\n\n🎮 Free Fire o'yini uchun eng yaxshi otish va sezgirlik (чувствительность) sozlamalari sizning qurilmangizga moslashtirildi!")
+        await msg.answer("⚙️ **Telefonga Nastroyka Bo'limi:**\n\n🎮 Free Fire o'yini uchun eng yaxshi otish va sezgirlik sozlamalari sizning qurilmangizga moslashtirildi!")
 
     @c_dp.message(F.text == "🤝 Sheriklar")
     async def c_partners(msg: types.Message):
@@ -281,7 +286,7 @@ def build_client_dispatcher(db_id, admin_user, owner_id):
 
     @c_dp.message(F.text == "🤝 Sherik Topish")
     async def c_find_partner(msg: types.Message):
-        await msg.answer("🎯 **O'yin uchun Sherik Topish:**\n\nBirga Free Fire yoki PUBG o'ynash uchun o'zingizga munosib jamoadosh qidiryapsizmi? Jamoadosh topish bo'limi tez orada yangilanadi!")
+        await msg.answer("🎯 **O'yin uchun Sherik Topish:**\n\nJamoadosh topish bo'limi tez orada yangilanadi!")
 
     @c_dp.message(F.text == "🛒 O'yin Do'koni")
     async def c_shop(msg: types.Message):
@@ -291,11 +296,11 @@ def build_client_dispatcher(db_id, admin_user, owner_id):
 
     @c_dp.message(F.text == "🎬 Youtuber Xizmatlari")
     async def c_yt(msg: types.Message):
-        await msg.answer("🎬 **Youtuberlar uchun Maxsus Xizmatlar:**\n\nKanalingizni rivojlantirish, obunachi yig'ish va video promo xizmatlari mavjud!")
+        await msg.answer("🎬 **Youtuberlar uchun Maxsus Xizmatlar:**\n\nKanalingizni rivojlantirish va video promo xizmatlari mavjud!")
 
     @c_dp.message(F.text == "🤖 Sun'iy Intellekt")
     async def c_ai(msg: types.Message):
-        await msg.answer("🤖 **Sun'iy Intellekt (AI):**\n\nAI yordamchisi orqali o'yiningiz uchun taktika yoki istalgan savolingizga tezkor javob oling!")
+        await msg.answer("🤖 **Sun'iy Intellekt (AI):**\n\nAI yordamchisi orqali o'yiningiz uchun taktika yoki savollaringizga javob oling!")
 
     @c_dp.message(F.text == "🔑 Admin Panel")
     async def c_admin_panel(msg: types.Message):
@@ -418,8 +423,7 @@ async def cmd_start(msg: types.Message):
         f"🔑 Har bir yaratilgan bot ichida to'liq **Admin Panel** bo'ladi!\n"
         f"⏱ Botlarning dastlabki ish muddati: **17 kun**.\n"
         f"🔁 Keyingi har 17 kun uchun to'lov: **11,990 so'm**.",
-        reply_markup=main_maker_menu(),
-        parse_mode="Markdown"
+        reply_markup=main_maker_menu()
     )
 
 @dp.message(F.text == "📚 100 ta Botlar Katalogi")
@@ -428,7 +432,7 @@ async def show_catalog(msg: types.Message):
     for k in range(1, 11):
         text += f"🔹 **ID: {k}** — {BOT_TEMPLATES[k]['name']} (`{BOT_TEMPLATES[k]['cat']}`)\n"
     text += f"\n...va yana 90 ta maxsus bot shablonlari mavjud!\n\nBot yaratish uchun **'🤖 Bot Yaratish'** tugmasini bosing."
-    await msg.answer(text, parse_mode="Markdown")
+    await msg.answer(text)
 
 @dp.message(F.text == "📂 Mening Botlarim")
 async def my_bots(msg: types.Message):
@@ -440,7 +444,7 @@ async def my_bots(msg: types.Message):
     for b in user_bots:
         template_name = BOT_TEMPLATES.get(b[1], {}).get("name", f"Shablon #{b[1]}")
         text += f"🆔 **Bot ID:** `{b[0]}`\n🤖 **Tur:** {template_name}\n⏳ **Tugash sanasi:** {b[2]}\n📌 **Holat:** {b[3]}\n------------------------------\n"
-    await msg.answer(text, parse_mode="Markdown")
+    await msg.answer(text)
 
 @dp.message(F.text == "📞 Qo'llab-quvvatlash")
 async def support_info(msg: types.Message):
@@ -453,7 +457,7 @@ async def start_bot_creation(msg: types.Message, state: FSMContext):
 
 @dp.message(BotCreateFSM.waiting_template)
 async def process_template_choice(msg: types.Message, state: FSMContext):
-    if not msg.text.isdigit() or int(msg.text) not in BOT_TEMPLATES:
+    if not msg.text or not msg.text.isdigit() or int(msg.text) not in BOT_TEMPLATES:
         await msg.answer("❌ Noto'g'ri ID. 1 va 100 orasidagi raqam kiriting:")
         return
     await state.update_data(template_id=int(msg.text))
@@ -462,7 +466,7 @@ async def process_template_choice(msg: types.Message, state: FSMContext):
 
 @dp.message(BotCreateFSM.waiting_token)
 async def process_token_input(msg: types.Message, state: FSMContext):
-    if ":" not in msg.text:
+    if not msg.text or ":" not in msg.text:
         await msg.answer("❌ Noto'g'ri Token formati. Qayta kiriting:")
         return
     await state.update_data(token=msg.text.strip())
@@ -471,6 +475,9 @@ async def process_token_input(msg: types.Message, state: FSMContext):
 
 @dp.message(BotCreateFSM.waiting_admin_user)
 async def process_admin_user_input(msg: types.Message, state: FSMContext):
+    if not msg.text:
+        await msg.answer("❌ Username kiriting:")
+        return
     clean_username = msg.text.strip().lstrip("@")
     await state.update_data(admin_user=clean_username)
     text = (
@@ -480,13 +487,17 @@ async def process_admin_user_input(msg: types.Message, state: FSMContext):
         f"👤 Egasining ismi: **{CARD_HOLDER}**\n\n"
         f"📌 To'lovni amalga oshirgach, **TO'LOV CHEKI (Rasm/Skrinshot)**ini ushbu chatga yuboring:"
     )
-    await msg.answer(text, parse_mode="Markdown")
+    await msg.answer(text)
     await state.set_state(BotCreateFSM.waiting_receipt)
 
-@dp.message(BotCreateFSM.waiting_receipt, F.photo)
+@dp.message(BotCreateFSM.waiting_receipt)
 async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
+    if not msg.photo and not msg.document:
+        await msg.answer("❌ Iltimos, to'lov chekini **rasm (skrinshot)** holatida yuboring!")
+        return
+
     data = await state.get_data()
-    photo_id = msg.photo[-1].file_id
+    photo_id = msg.photo[-1].file_id if msg.photo else msg.document.file_id
     
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Tasdiqlash va Yaratish", callback_data=f"approve_create:{msg.from_user.id}")
@@ -497,15 +508,24 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
         f"📥 YANGI BOT YARATISH UCHUN TO'LOV CHEKI!\n\n"
         f"👤 Foydalanuvchi: {msg.from_user.full_name}\n"
         f"🆔 ID: {msg.from_user.id}\n"
-        f"📌 Shablon ID: {data['template_id']}\n"
-        f"🔑 Token: {data['token']}\n"
-        f"👨‍💻 Admin Username: @{data['admin_user']}\n"
+        f"📌 Shablon ID: {data.get('template_id')}\n"
+        f"🔑 Token: {data.get('token')}\n"
+        f"👨‍💻 Admin Username: @{data.get('admin_user')}\n"
         f"💰 Summa: 39,990 so'm\n\n"
         f"To'lovni tasdiqlaysizmi?"
     )
     
-    await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
-    await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.", parse_mode="Markdown")
+    try:
+        if msg.photo:
+            await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+        else:
+            await maker_bot.send_document(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+        
+        await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.")
+    except Exception as e:
+        logging.error(f"Adminga yuborishda xatolik: {e}")
+        await msg.answer("⚠️ **Chek qabul qilindi**, lekin adminga yetkazishda xatolik bo'ldi. Admin botga `/start` bosganini va `ADMIN_ID` to'g'riligini tekshiring.")
+    
     await state.clear()
 
 @dp.message(F.text == "🔄 Obunani Uzaytirish (11,990 so'm)")
@@ -515,7 +535,7 @@ async def start_renew(msg: types.Message, state: FSMContext):
 
 @dp.message(RenewFSM.waiting_bot_id)
 async def process_renew_bot_id(msg: types.Message, state: FSMContext):
-    if not msg.text.isdigit():
+    if not msg.text or not msg.text.isdigit():
         await msg.answer("❌ Noto'g'ri ID. Faqat raqam kiriting:")
         return
     await state.update_data(renew_bot_id=int(msg.text))
@@ -526,13 +546,17 @@ async def process_renew_bot_id(msg: types.Message, state: FSMContext):
         f"👤 Egasining ismi: **{CARD_HOLDER}**\n\n"
         f"📌 To'lovni amalga oshirgach, **TO'LOV CHEKI (Rasm/Skrinshot)**ini yuboring:"
     )
-    await msg.answer(text, parse_mode="Markdown")
+    await msg.answer(text)
     await state.set_state(RenewFSM.waiting_receipt)
 
-@dp.message(RenewFSM.waiting_receipt, F.photo)
+@dp.message(RenewFSM.waiting_receipt)
 async def process_renew_receipt(msg: types.Message, state: FSMContext):
+    if not msg.photo and not msg.document:
+        await msg.answer("❌ Iltimos, to'lov chekini **rasm (skrinshot)** holatida yuboring!")
+        return
+
     data = await state.get_data()
-    photo_id = msg.photo[-1].file_id
+    photo_id = msg.photo[-1].file_id if msg.photo else msg.document.file_id
     
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Obunani Uzaytirish", callback_data=f"approve_renew:{msg.from_user.id}:{data['renew_bot_id']}")
@@ -546,8 +570,17 @@ async def process_renew_receipt(msg: types.Message, state: FSMContext):
         f"🤖 Bot ID: {data['renew_bot_id']}\n"
         f"💰 Summa: {RENEW_PRICE:,} so'm"
     )
-    await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
-    await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tasdiqlagach, bot muddati uzaytiriladi.", parse_mode="Markdown")
+    
+    try:
+        if msg.photo:
+            await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+        else:
+            await maker_bot.send_document(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+        await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tasdiqlagach, bot muddati uzaytiriladi.")
+    except Exception as e:
+        logging.error(f"Adminga uzaytirish chekini yuborishda xatolik: {e}")
+        await msg.answer("⚠️ **Chek qabul qilindi**, lekin adminga yetkazib berishda xatolik yuz berdi.")
+
     await state.clear()
 
 @dp.callback_query(F.data.startswith("approve_create:"))
@@ -582,8 +615,7 @@ async def approve_bot_creation(call: types.CallbackQuery):
         f"🤖 Bot shabloni: **{template_name}**\n"
         f"🔑 **Admin Panel:** Botingizga `/start` bosing va `🔑 Admin Panel` tugmasidan foydalaning!\n"
         f"⏱ Amal qilish muddati ({EXPIRE_DAYS} kun): **{expire_date}** gacha\n\n"
-        f"Muddati tugashiga yaqin botni uzaytirish uchun **'🔄 Obunani Uzaytirish'** bo'limidan foydalaning.",
-        parse_mode="Markdown"
+        f"Muddati tugashiga yaqin botni uzaytirish uchun **'🔄 Obunani Uzaytirish'** bo'limidan foydalaning."
     )
     await call.message.edit_caption(caption=caption + "\n\n✅ **ADMIN TARAFIDAN TASDIQLANDI VA BOT ISHGA TUSHDI!**")
     await call.answer("Tasdiqlandi va bot ishga tushirildi!", show_alert=True)
@@ -600,8 +632,7 @@ async def approve_bot_renew(call: types.CallbackQuery):
             owner_id,
             f"🎉 **Bot obunasi muvaffaqiyatli uzaytirildi!**\n\n"
             f"🤖 Bot ID: **{bot_id}**\n"
-            f"⏱ Yangi tugash muddati: **{new_expire}**",
-            parse_mode="Markdown"
+            f"⏱ Yangi tugash muddati: **{new_expire}**"
         )
         await call.message.edit_caption(caption=(call.message.caption or "") + f"\n\n✅ **OBUNA {new_expire} GACHA UZAYTIRILDI!**")
         await call.answer("Uzaytirildi!", show_alert=True)
@@ -611,7 +642,7 @@ async def approve_bot_renew(call: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("reject:"))
 async def reject_payment(call: types.CallbackQuery):
     owner_id = int(call.data.split(":")[1])
-    await maker_bot.send_message(owner_id, "❌ **To'lovingiz rad etildi.** Chek xato yoki to'lov kelib tushmadi.", parse_mode="Markdown")
+    await maker_bot.send_message(owner_id, "❌ **To'lovingiz rad etildi.** Chek xato yoki to'lov kelib tushmadi.")
     await call.message.edit_caption(caption=(call.message.caption or "") + "\n\n❌ **RAD ETILDI.**")
     await call.answer("Rad etildi!", show_alert=True)
 
@@ -620,7 +651,7 @@ async def reject_payment(call: types.CallbackQuery):
 # =====================================================================
 async def main():
     init_db()
-    await start_dummy_server()  # Render Web Service uchun port tayyorlash
+    await start_dummy_server()
     await start_all_user_bots()
     logging.info("PRO MAX Bot Constructor muvaffaqiyatli ishga tushdi...")
     await dp.start_polling(maker_bot)
