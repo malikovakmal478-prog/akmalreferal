@@ -5,6 +5,7 @@ import sys
 import os
 import re
 from datetime import datetime, timedelta
+from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
@@ -13,7 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 # =====================================================================
-# 1. SOZLAMALAR
+# 1. SOZLAMALAR VA RENDER PORTI
 # =====================================================================
 MAKER_TOKEN = "8635436262:AAEmx_NdkOA1Ek9HaejFM2ivSpQplKUXz40"
 ADMIN_ID = 7849637859  # Constructor Admin Telegram ID si
@@ -24,11 +25,28 @@ CREATE_PRICE = 39990
 RENEW_PRICE = 11990
 EXPIRE_DAYS = 17
 
+# Render beradigan portni olish
+PORT = int(os.environ.get("PORT", 8080))
+
 maker_bot = Bot(token=MAKER_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # =====================================================================
-# 2. FSM HOLATLARI
+# 2. RENDER UCHUN DUMMY WEB SERVER
+# =====================================================================
+async def handle(request):
+    return web.Response(text="Bot ishlamoqda!")
+
+async def start_dummy_server():
+    app = web.Application()
+    app.router.add_get("/", handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+
+# =====================================================================
+# 3. FSM HOLATLARI
 # =====================================================================
 class BotCreateFSM(StatesGroup):
     waiting_template = State()
@@ -48,7 +66,7 @@ class AdminGiveBonusFSM(StatesGroup):
     waiting_amount = State()
 
 # =====================================================================
-# 3. MA'LUMOTLAR BAZASI
+# 4. MA'LUMOTLAR BAZASI
 # =====================================================================
 def init_db():
     conn = sqlite3.connect("constructor_promax.db")
@@ -97,7 +115,7 @@ def extend_bot_subscription(bot_id):
     return None
 
 # =====================================================================
-# 4. BOT SHABLONLARI KATALOGI
+# 5. BOT SHABLONLARI KATALOGI
 # =====================================================================
 BOT_TEMPLATES = {
     1: {"name": "💎 Almaz & FF Bot (Spin-less Pro)", "cat": "O'yinlar"},
@@ -115,7 +133,7 @@ for i in range(11, 101):
     BOT_TEMPLATES[i] = {"name": f"⚡ Pro Max Specialized Template #{i}", "cat": "Sanoat va Xizmatlar"}
 
 # =====================================================================
-# 5. MIJOZ BOTLARI MOTOR (BARCHA TUGMALAR TO'LIQ ISHLAYDI)
+# 6. MIJOZ BOTLARI MOTOR (BARCHA BO'LIMLAR TO'LIQ ISHLAYDI)
 # =====================================================================
 def init_client_db(db_id):
     conn = sqlite3.connect(f"client_data_{db_id}.db")
@@ -139,7 +157,6 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
         c_bot = Bot(token=token)
         c_dp = Dispatcher(storage=MemoryStorage())
         
-        # --- BAZA BILAN ISHLASH ---
         def get_user(u_id):
             conn = sqlite3.connect(f"client_data_{db_id}.db")
             cursor = conn.cursor()
@@ -185,7 +202,6 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
             conn.commit()
             conn.close()
 
-        # --- BARCHA BO'LIMLAR HANDLERLARI ---
         @c_dp.message(CommandStart())
         async def c_start(msg: types.Message):
             args = msg.text.split()
@@ -218,7 +234,7 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
 
         @c_dp.message(F.text == "⚙️ Telefonga Nastroyka")
         async def c_settings(msg: types.Message):
-            await msg.answer("⚙️ **Telefonga Nastroyka Bo'limi:**\n\n🎮 Free Fire o'yini uchun eng yaxshi otish (otдача olib tashlash) va sezgirlik (чувствительность) sozlamalari sizning qurilmangizga moslashtirildi!")
+            await msg.answer("⚙️ **Telefonga Nastroyka Bo'limi:**\n\n🎮 Free Fire o'yini uchun eng yaxshi otish va sezgirlik (чувствительность) sozlamalari sizning qurilmangizga moslashtirildi!")
 
         @c_dp.message(F.text == "🤝 Sheriklar")
         async def c_partners(msg: types.Message):
@@ -266,7 +282,6 @@ async def run_single_client_bot(db_id, token, admin_user, template_id, owner_id)
         async def c_ai(msg: types.Message):
             await msg.answer("🤖 **Sun'iy Intellekt (AI):**\n\nAI yordamchisi orqali o'yiningiz uchun taktika yoki istalgan savolingizga tezkor javob oling!")
 
-        # --- ADMIN PANEL HANDLERLARI ---
         @c_dp.message(F.text == "🔑 Admin Panel")
         async def c_admin_panel(msg: types.Message):
             if msg.from_user.id != owner_id:
@@ -358,7 +373,7 @@ async def start_all_user_bots():
         asyncio.create_task(run_single_client_bot(b[0], b[1], b[2], b[3], b[4]))
 
 # =====================================================================
-# 6. MAKER BOT MENYULARI VA HANDLERLARI
+# 7. MAKER BOT MENYULARI VA HANDLERLARI
 # =====================================================================
 def main_maker_menu():
     kb = ReplyKeyboardBuilder()
@@ -498,10 +513,11 @@ async def reject_payment(call: types.CallbackQuery):
     await call.answer("Rad etildi!", show_alert=True)
 
 # =====================================================================
-# 7. DASTURNI ISHGA TUSHIRISH
+# 8. DASTURNI ISHGA TUSHIRISH (MAIN)
 # =====================================================================
 async def main():
     init_db()
+    await start_dummy_server()  # Render Web Service uchun portni ochiq ko'rsatish
     await start_all_user_bots()
     print("PRO MAX Bot Constructor muvaffaqiyatli ishga tushdi...")
     await dp.start_polling(maker_bot)
