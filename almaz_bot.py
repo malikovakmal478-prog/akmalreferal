@@ -4,6 +4,7 @@ import sqlite3
 import sys
 import subprocess
 import os
+import re
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart, Command
@@ -16,7 +17,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 # 1. SOZLAMALAR
 # =====================================================================
 MAKER_TOKEN = "8635436262:AAHdexSxyGVWNXHcAZ_EaNEvzt4zzqFFh70"
-ADMIN_ID = 7849637859  # Admin Telegram ID
+ADMIN_ID = 7849637859  # Admin Telegram IDingizni kiriting
 CARD_NUMBER = "5440 8103 1990 4917"
 CARD_HOLDER = "G/N"
 
@@ -90,7 +91,7 @@ def extend_bot_subscription(bot_id):
     return None
 
 # =====================================================================
-# 4. 100 TA PRO MAX BOT SHABLONLARI TIZIMI
+# 4. BOT SHABLONLARI KATALOGI
 # =====================================================================
 BOT_TEMPLATES = {
     1: {"name": "💎 Almaz & FF Bot (Spin-less Pro)", "cat": "O'yinlar"},
@@ -168,7 +169,8 @@ async def start(msg: types.Message):
     kb.button(text="🎬 Youtuber Xizmatlari"); kb.button(text="🤖 Sun'iy Intellekt")
     kb.adjust(2, 1, 2, 2, 2, 1)
     
-    await msg.answer(f"👋 Salom {{msg.from_user.full_name}}!\\n💎 **Almaz Bot Pro Max** xush kelibsiz!", reply_markup=kb.as_markup(resize_keyboard=True))
+    user_name = msg.from_user.full_name
+    await msg.answer(f"👋 Salom {{user_name}}!\\n💎 **Almaz Bot Pro Max** xush kelibsiz!", reply_markup=kb.as_markup(resize_keyboard=True))
 
 @dp.message(F.text == "💎 Almaz ishlash")
 async def almaz(msg: types.Message):
@@ -278,67 +280,78 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
     builder.adjust(1)
     
     caption = (
-        f"📥 **YANGI BOT YARATISH UCHUN TO'LOV CHEKI!**\n\n"
-        f"👤 Foydalanuvchi: {msg.from_user.full_name} (@{msg.from_user.username})\n"
-        f"🪪 ID: `{msg.from_user.id}`\n"
-        f"🤖 Shablon ID: **{data['template_id']}** ({BOT_TEMPLATES[data['template_id']]['name']})\n"
-        f"🔑 Token: `{data['token']}`\n"
+        f"📥 YANGI BOT YARATISH UCHUN TO'LOV CHEKI!\n\n"
+        f"👤 Foydalanuvchi: {msg.from_user.full_name}\n"
+        f"🆔 ID: {msg.from_user.id}\n"
+        f"🤖 Shablon ID: {data['template_id']}\n"
+        f"🔑 Token: {data['token']}\n"
         f"👨‍💻 Admin Username: @{data['admin_user']}\n"
-        f"💰 Summa: **39,990 so'm**\n\n"
+        f"💰 Summa: 39,990 so'm\n\n"
         f"Shuncha to'ladi. To'lovni tasdiqlaysizmi?"
     )
     
-    await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, parse_mode="Markdown", reply_markup=builder.as_markup())
+    await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
     await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.")
     await state.clear()
 
 # =====================================================================
-# 7. ADMIN TASDIQLASH CALLBACKI (TUZATILGAN QISM)
+# 7. ADMIN TASDIQLASH CALLBACKI (REGEX BILAN ANIQ VA XAVFSIZ AJRATIB OLISH)
 # =====================================================================
 @dp.callback_query(F.data.startswith("approve_create:"))
 async def approve_bot_creation(call: types.CallbackQuery):
     owner_id = int(call.data.split(":")[1])
     caption = call.message.caption or ""
     
-    # Text parse jarayonini xatosiz va xavfsiz amalga oshirish
     try:
-        template_id = int(caption.split("Shablon ID: **")[1].split("**")[0])
-        token = caption.split("Token: `")[1].split("`")[0]
-        admin_user = caption.split("Admin Username: @")[1].split("\n")[0]
+        # ReGex orqali matndan aniq ma'lumotlarni ajratib olish
+        template_match = re.search(r"Shablon ID:\s*(\d+)", caption)
+        token_match = re.search(r"Token:\s*([^\s\n]+)", caption)
+        admin_match = re.search(r"Admin Username:\s*@?([^\s\n]+)", caption)
+
+        if not (template_match and token_match and admin_match):
+            raise ValueError("Ma'lumotlar to'liq topilmadi")
+
+        template_id = int(template_match.group(1))
+        token = token_match.group(1).strip()
+        admin_user = admin_match.group(1).strip().replace("@", "")
+
     except Exception as err:
+        logging.error(f"Parsing error: {err}")
         await call.answer("❌ Chek matnini ajratishda xatolik yuz berdi!", show_alert=True)
         return
 
-    # Bazaga saqlash
+    # 1. Bazaga saqlash
     bot_db_id, expire_date = add_user_bot(owner_id, token, admin_user, template_id)
     
-    # Bot kodi faylini yaratish va fonda ishga tushirish
+    # 2. Bot kodi faylini yaratish
     file_name = f"user_bot_{bot_db_id}.py"
     code = build_client_bot_code(token, admin_user, template_id, bot_db_id)
     
     with open(file_name, "w", encoding="utf-8") as f:
         f.write(code)
         
+    # 3. Orqa fonda ishga tushirish
     subprocess.Popen([sys.executable, file_name])
     
-    # Foydalanuvchiga xabar yuborish
+    # 4. Foydalanuvchiga xabar yuborish
+    template_name = BOT_TEMPLATES.get(template_id, {}).get('name', f"Shablon #{template_id}")
     await maker_bot.send_message(
         owner_id,
         f"🎉 **To'lovingiz tasdiqlandi va botingiz muvaffaqiyatli yaratildi!**\n\n"
-        f"🤖 Bot shabloni: **{BOT_TEMPLATES[template_id]['name']}**\n"
+        f"🤖 Bot shabloni: **{template_name}**\n"
         f"⏱ Amal qilish muddati (17 kun): **{expire_date}** gacha\n\n"
         f"Muddati tugashiga yaqin botni uzaytirish uchun **'🔄 Obunani Uzaytirish'** bo'limidan foydalaning.",
         parse_mode="Markdown"
     )
     await call.message.edit_caption(caption=caption + "\n\n✅ **ADMIN TARAFIDAN TASDIQLANDI VA BOT ISHGA TUSHDI!**")
-    await call.answer("Tasdiqlandi va bot ishga tushirildi!")
+    await call.answer("Tasdiqlandi va bot ishga tushirildi!", show_alert=True)
 
 @dp.callback_query(F.data.startswith("reject:"))
 async def reject_payment(call: types.CallbackQuery):
     owner_id = int(call.data.split(":")[1])
     await maker_bot.send_message(owner_id, "❌ **To'lovingiz rad etildi.** Chek xato yoki to'lov kelib tushmadi.")
     await call.message.edit_caption(caption=(call.message.caption or "") + "\n\n❌ **RAD ETILDI.**")
-    await call.answer("Rad etildi!")
+    await call.answer("Rad etildi!", show_alert=True)
 
 # =====================================================================
 # 8. OBUNANI UZAYTIRISH (17 KUN / 11,990 SO'M)
@@ -357,7 +370,8 @@ async def renew_start(msg: types.Message, state: FSMContext):
 
     text = "📂 **Sizning botlaringiz:**\n\n"
     for b in bots:
-        text += f"🆔 **Bot ID: {b[0]}** | Shablon: {BOT_TEMPLATES[b[1]]['name']}\n⏱ Muddat: `{b[2]}`\n\n"
+        t_name = BOT_TEMPLATES.get(b[1], {}).get('name', f"Shablon #{b[1]}")
+        text += f"🆔 **Bot ID: {b[0]}** | Shablon: {t_name}\n⏱ Muddat: `{b[2]}`\n\n"
     text += "Qaysi Bot ID'si uchun obunani uzaytirmoqchisiz? Bot ID'sini kiriting:"
     
     await msg.answer(text, parse_mode="Markdown")
@@ -415,7 +429,7 @@ async def approve_renew_callback(call: types.CallbackQuery):
         parse_mode="Markdown"
     )
     await call.message.edit_caption(caption=(call.message.caption or "") + "\n\n✅ **OBUNA UZAYTIRILDI!**")
-    await call.answer("Obuna uzaytirildi!")
+    await call.answer("Obuna uzaytirildi!", show_alert=True)
 
 # =====================================================================
 # 9. DASTURNI ISHGA TUSHIRISH
