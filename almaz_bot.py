@@ -19,9 +19,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAEmx_NdkOA1Ek9HaejFM2ivSpQplKUXz40")
 
 try:
-    ADMIN_ID = int(os.environ.get("ADMIN_ID", 899045766))
+    ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
 except ValueError:
-    ADMIN_ID = 899045766
+    ADMIN_ID = 7849637859
 
 CARD_NUMBER = os.environ.get("CARD_NUMBER", "5440810319904917")
 CARD_HOLDER = os.environ.get("CARD_HOLDER", "g/n")
