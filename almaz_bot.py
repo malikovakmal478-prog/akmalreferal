@@ -16,7 +16,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 # =====================================================================
 # 1. SOZLAMALAR VA RENDER PORTI
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAEGDjRR9qw1UvkbvYUlRNy1dGF-X_-CWSs")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAHtzFW3eFtKOugRi9mp3fXyQJXj0hkVRNI")
 
 try:
     ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
@@ -498,6 +498,7 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
 
     data = await state.get_data()
     photo_id = msg.photo[-1].file_id if msg.photo else msg.document.file_id
+    admin_chat_id = int(ADMIN_ID)
     
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Tasdiqlash va Yaratish", callback_data=f"approve_create:{msg.from_user.id}")
@@ -517,14 +518,14 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
     
     try:
         if msg.photo:
-            await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+            await maker_bot.send_photo(chat_id=admin_chat_id, photo=photo_id, caption=caption, reply_markup=builder.as_markup())
         else:
-            await maker_bot.send_document(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+            await maker_bot.send_document(chat_id=admin_chat_id, document=photo_id, caption=caption, reply_markup=builder.as_markup())
         
         await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.")
     except Exception as e:
         logging.error(f"Adminga yuborishda xatolik: {e}")
-        await msg.answer("⚠️ **Chek qabul qilindi**, lekin adminga yetkazishda xatolik bo'ldi. Admin botga `/start` bosganini va `ADMIN_ID` to'g'riligini tekshiring.")
+        await msg.answer(f"⚠️ **Chek adminga yetib bormadi!**\n\n**Sababi:** `{e}`\n\n💡 Admin botga `/start` bosganini va ID to'g'riligini tekshiring.")
     
     await state.clear()
 
@@ -557,6 +558,7 @@ async def process_renew_receipt(msg: types.Message, state: FSMContext):
 
     data = await state.get_data()
     photo_id = msg.photo[-1].file_id if msg.photo else msg.document.file_id
+    admin_chat_id = int(ADMIN_ID)
     
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Obunani Uzaytirish", callback_data=f"approve_renew:{msg.from_user.id}:{data['renew_bot_id']}")
@@ -573,13 +575,13 @@ async def process_renew_receipt(msg: types.Message, state: FSMContext):
     
     try:
         if msg.photo:
-            await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+            await maker_bot.send_photo(chat_id=admin_chat_id, photo=photo_id, caption=caption, reply_markup=builder.as_markup())
         else:
-            await maker_bot.send_document(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
+            await maker_bot.send_document(chat_id=admin_chat_id, document=photo_id, caption=caption, reply_markup=builder.as_markup())
         await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tasdiqlagach, bot muddati uzaytiriladi.")
     except Exception as e:
         logging.error(f"Adminga uzaytirish chekini yuborishda xatolik: {e}")
-        await msg.answer("⚠️ **Chek qabul qilindi**, lekin adminga yetkazib berishda xatolik yuz berdi.")
+        await msg.answer(f"⚠️ **Chek adminga yetib bormadi!**\n\n**Sababi:** `{e}`")
 
     await state.clear()
 
