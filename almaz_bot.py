@@ -498,7 +498,6 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
 
     data = await state.get_data()
     photo_id = msg.photo[-1].file_id if msg.photo else msg.document.file_id
-    admin_chat_id = int(ADMIN_ID)
     
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Tasdiqlash va Yaratish", callback_data=f"approve_create:{msg.from_user.id}")
@@ -516,17 +515,31 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
         f"To'lovni tasdiqlaysizmi?"
     )
     
-    try:
-        if msg.photo:
-            await maker_bot.send_photo(chat_id=admin_chat_id, photo=photo_id, caption=caption, reply_markup=builder.as_markup())
-        else:
-            await maker_bot.send_document(chat_id=admin_chat_id, document=photo_id, caption=caption, reply_markup=builder.as_markup())
-        
-        await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.")
-    except Exception as e:
-        logging.error(f"Adminga yuborishda xatolik: {e}")
-        await msg.answer(f"⚠️ **Chek adminga yetib bormadi!**\n\n**Sababi:** `{e}`\n\n💡 Admin botga `/start` bosganini va ID to'g'riligini tekshiring.")
+    target_chat_id = int(ADMIN_ID)
     
+    try:
+        # Asosiy urinish: Adminga jo'natish
+        if msg.photo:
+            await msg.bot.send_photo(chat_id=target_chat_id, photo=photo_id, caption=caption, reply_markup=builder.as_markup())
+        else:
+            await msg.bot.send_document(chat_id=target_chat_id, document=photo_id, caption=caption, reply_markup=builder.as_markup())
+            
+        await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.")
+        
+    except Exception as e:
+        # Xatolikni konsolga/logga chiqarish
+        logging.error(f"Adminga xabar yuborishda xatolik: {e}")
+        
+        # Zaxira urinish: Chekni foydalanuvchining o'ziga yuborish
+        fallback_caption = caption + "\n\n⚠️ *(Admin botga /start bosmagani uchun chek testingiz uchun o'zingizga keldi)*"
+        
+        if msg.photo:
+            await msg.bot.send_photo(chat_id=msg.from_user.id, photo=photo_id, caption=fallback_caption, reply_markup=builder.as_markup())
+        else:
+            await msg.bot.send_document(chat_id=msg.from_user.id, document=photo_id, caption=fallback_caption, reply_markup=builder.as_markup())
+            
+        await msg.answer("✅ Chek qabul qilindi! (Admin botga `/start` bosmagani uchun tasdiqlash tugmasi shu chatga yuborildi)")
+
     await state.clear()
 
 @dp.message(F.text == "🔄 Obunani Uzaytirish (11,990 so'm)")
