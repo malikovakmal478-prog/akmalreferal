@@ -471,7 +471,8 @@ async def process_token_input(msg: types.Message, state: FSMContext):
 
 @dp.message(BotCreateFSM.waiting_admin_user)
 async def process_admin_user_input(msg: types.Message, state: FSMContext):
-    await state.update_data(admin_user=msg.text.strip().replace("@", ""))
+    clean_username = msg.text.strip().lstrip("@")
+    await state.update_data(admin_user=clean_username)
     text = (
         f"💳 **TO'LOV QILISH BOSQICHI:**\n\n"
         f"💵 Narxi: **{CREATE_PRICE:,} so'm**\n"
@@ -496,7 +497,7 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
         f"📥 YANGI BOT YARATISH UCHUN TO'LOV CHEKI!\n\n"
         f"👤 Foydalanuvchi: {msg.from_user.full_name}\n"
         f"🆔 ID: {msg.from_user.id}\n"
-        f"🤖 Shablon ID: {data['template_id']}\n"
+        f"📌 Shablon ID: {data['template_id']}\n"
         f"🔑 Token: {data['token']}\n"
         f"👨‍💻 Admin Username: @{data['admin_user']}\n"
         f"💰 Summa: 39,990 so'm\n\n"
@@ -504,7 +505,7 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
     )
     
     await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
-    await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.")
+    await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tekshirib tasdiqlagach, botingiz avtomatik ishga tushadi.", parse_mode="Markdown")
     await state.clear()
 
 @dp.message(F.text == "🔄 Obunani Uzaytirish (11,990 so'm)")
@@ -546,7 +547,7 @@ async def process_renew_receipt(msg: types.Message, state: FSMContext):
         f"💰 Summa: {RENEW_PRICE:,} so'm"
     )
     await maker_bot.send_photo(ADMIN_ID, photo_id, caption=caption, reply_markup=builder.as_markup())
-    await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tasdiqlagach, bot muddati uzaytiriladi.")
+    await msg.answer("⌛ **Chekingiz qabul qilindi!** Admin tasdiqlagach, bot muddati uzaytiriladi.", parse_mode="Markdown")
     await state.clear()
 
 @dp.callback_query(F.data.startswith("approve_create:"))
@@ -599,7 +600,8 @@ async def approve_bot_renew(call: types.CallbackQuery):
             owner_id,
             f"🎉 **Bot obunasi muvaffaqiyatli uzaytirildi!**\n\n"
             f"🤖 Bot ID: **{bot_id}**\n"
-            f"⏱ Yangi tugash muddati: **{new_expire}**"
+            f"⏱ Yangi tugash muddati: **{new_expire}**",
+            parse_mode="Markdown"
         )
         await call.message.edit_caption(caption=(call.message.caption or "") + f"\n\n✅ **OBUNA {new_expire} GACHA UZAYTIRILDI!**")
         await call.answer("Uzaytirildi!", show_alert=True)
@@ -609,7 +611,7 @@ async def approve_bot_renew(call: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("reject:"))
 async def reject_payment(call: types.CallbackQuery):
     owner_id = int(call.data.split(":")[1])
-    await maker_bot.send_message(owner_id, "❌ **To'lovingiz rad etildi.** Chek xato yoki to'lov kelib tushmadi.")
+    await maker_bot.send_message(owner_id, "❌ **To'lovingiz rad etildi.** Chek xato yoki to'lov kelib tushmadi.", parse_mode="Markdown")
     await call.message.edit_caption(caption=(call.message.caption or "") + "\n\n❌ **RAD ETILDI.**")
     await call.answer("Rad etildi!", show_alert=True)
 
