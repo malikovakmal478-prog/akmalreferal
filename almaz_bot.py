@@ -14,17 +14,14 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 # =====================================================================
-# 1. SOZLAMALAR VA RENDER PORTI
+# 1. SOZLAMALAR (O'zingiz moslab chiqishingiz mumkin)
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAH7UZxIsN9KEAKGfDvznvN6MBnVIQkAfJg")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "BOT_TOKENINGIZNI_SHU_YERGA_YOZING")
 
-try:
-    ADMIN_ID = int(os.environ.get("ADMIN_ID", 899045766))
-except ValueError:
-    ADMIN_ID = 899045766
-
-CARD_NUMBER = os.environ.get("CARD_NUMBER", "5440810319904917")
-CARD_HOLDER = os.environ.get("CARD_HOLDER", "g/n")
+# Admin ID va Karta ma'lumotlari
+ADMIN_ID = int(os.environ.get("899045766", 0))  # <-- ADMIN ID'INGIZNI SHU YERGA YOZING (Masalan: 123456789)
+CARD_NUMBER = os.environ.get("5440810319904917", "5440810319904917")
+CARD_HOLDER = os.environ.get("g/n", "KARTA EGGASI")
 
 CREATE_PRICE = 39990
 RENEW_PRICE = 11990
@@ -137,7 +134,7 @@ def get_user_bots_by_owner(owner_id):
     return rows
 
 # =====================================================================
-# 5. BOT SHABLONLARI KATALOGI (100 TA SHABLON)
+# 5. BOT SHABLONLARI KATALOGI
 # =====================================================================
 BOT_TEMPLATES = {
     1: {"name": "💎 Almaz & FF Bot (Spin-less Pro)", "cat": "O'yinlar"},
@@ -155,7 +152,7 @@ for i in range(11, 101):
     BOT_TEMPLATES[i] = {"name": f"⚡ Pro Max Specialized Template #{i}", "cat": "Xizmatlar & Biznes"}
 
 # =====================================================================
-# 6. SHABLONLAR BO'YICHA DINAMIK MIJOZ BOT DISPATCHERLARI
+# 6. MIJOZ BOT DISPATCHERLARI
 # =====================================================================
 def init_client_db(db_id):
     conn = sqlite3.connect(f"client_data_{db_id}.db")
@@ -181,7 +178,6 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
     c_dp = Dispatcher(storage=MemoryStorage())
     tpl_info = BOT_TEMPLATES.get(template_id, {"name": "Telegram Bot", "cat": "Xizmatlar"})
 
-    # --- A) SHABLON #1: ALMAZ & GAMING BOT ---
     if template_id == 1:
         @c_dp.message(CommandStart())
         async def almaz_start(msg: types.Message):
@@ -209,7 +205,6 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
             b.button(text="👨‍💻 Admin bilan bog'lanish", url=f"https://t.me/{admin_user}")
             await msg.answer("🛒 **O'yin Do'koni:**\n\n💎 100 Almaz - 15,000 so'm\n💎 310 Almaz - 42,000 so'm", reply_markup=b.as_markup())
 
-    # --- B) SHABLON #2: KINO BOT PRO ---
     elif template_id == 2:
         @c_dp.message(CommandStart())
         async def kino_start(msg: types.Message):
@@ -239,14 +234,14 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
             if res:
                 await msg.answer(f"🎬 **Kino topildi! (Kod: {code})**\n\n🍿 Tomosha qilish havolasi / video: {res[0]}")
             else:
-                await msg.answer(f"❌ `{code}` kodli kino topilmadi. Qaytadan kiriting yoki admin bilan bog'laning.")
+                await msg.answer(f"❌ `{code}` kodli kino topilmadi.")
             await state.clear()
 
         @c_dp.message(F.text == "➕ Kino Qo'shish (Admin)")
         async def kino_add_prompt(msg: types.Message, state: FSMContext):
             if msg.from_user.id != owner_id:
                 return
-            await msg.answer("➕ Yangi kino uchun **KOD** kiriting (masalan: `101`):")
+            await msg.answer("➕ Yangi kino uchun **KOD** kiriting:")
             await state.set_state(ClientKinoFSM.waiting_add_code)
 
         @c_dp.message(ClientKinoFSM.waiting_add_code)
@@ -270,73 +265,6 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
             await msg.answer(f"✅ **Kino saqlandi!**\nKod: `{code}`\nHavola: {link}")
             await state.clear()
 
-        @c_dp.message(F.text == "🔥 Top Kinolar")
-        async def kino_top(msg: types.Message):
-            await msg.answer("🔥 **Eng ko'p ko'rilgan kinolar:**\n1. Kod 101 - Rembo\n2. Kod 102 - Forsaj 10")
-
-    # --- C) SHABLON #10 (va 4): TAOM / PIZZA / SHOP DELIVERY ---
-    elif template_id in [4, 10]:
-        @c_dp.message(CommandStart())
-        async def delivery_start(msg: types.Message):
-            kb = ReplyKeyboardBuilder()
-            kb.button(text="🍕 Menyu & Buyurtma")
-            kb.button(text="🛒 Mening savatcham")
-            kb.button(text="📞 Biz bilan bog'lanish")
-            if msg.from_user.id == owner_id:
-                kb.button(text="🔑 Admin Panel")
-            kb.adjust(2, 1)
-            await msg.answer(f"🏬 **{tpl_info['name']}** xizmatiga xush kelibsiz!\n\nBuyurtma berish uchun menyudan foydalaning:", reply_markup=kb.as_markup(resize_keyboard=True))
-
-        @c_dp.message(F.text == "🍕 Menyu & Buyurtma")
-        async def delivery_menu(msg: types.Message):
-            b = InlineKeyboardBuilder()
-            b.button(text="🍕 Maxsus Pizza — 65,000 so'm", callback_data="order_item:Pizza")
-            b.button(text="🍔 Burger Set — 45,000 so'm", callback_data="order_item:Burger")
-            b.button(text="🥤 Salqin ichimlik — 12,000 so'm", callback_data="order_item:Drink")
-            b.adjust(1)
-            await msg.answer("📋 **Mavjud mahsulotlar:**", reply_markup=b.as_markup())
-
-        @c_dp.callback_query(F.data.startswith("order_item:"))
-        async def delivery_order_process(call: types.CallbackQuery, state: FSMContext):
-            item_name = call.data.split(":")[1]
-            await state.update_data(item=item_name)
-            await call.message.answer(f"✅ Siz **{item_name}**ni tanladingiz.\n\n📍 Iltimos, **yetkazib berish manzilini** kiriting:")
-            await state.set_state(ClientOrderFSM.waiting_address)
-            await call.answer()
-
-        @c_dp.message(ClientOrderFSM.waiting_address)
-        async def delivery_address(msg: types.Message, state: FSMContext):
-            await state.update_data(address=msg.text)
-            await msg.answer("📞 Endi **telefon raqamingizni** kiriting:")
-            await state.set_state(ClientOrderFSM.waiting_phone)
-
-        @c_dp.message(ClientOrderFSM.waiting_phone)
-        async def delivery_finish(msg: types.Message, state: FSMContext, bot: Bot):
-            data = await state.get_data()
-            phone = msg.text
-            item = data.get("item")
-            address = data.get("address")
-
-            await msg.answer("✅ **Buyurtmangiz qabul qilindi!** Tez orada operator bog'lanadi.")
-
-            try:
-                await bot.send_message(
-                    owner_id,
-                    f"📥 **YANGI BUYURTMA!**\n\n"
-                    f"📦 Mahsulot: **{item}**\n"
-                    f"👤 Mijoz: {msg.from_user.full_name}\n"
-                    f"📍 Manzil: {address}\n"
-                    f"📞 Tel: {phone}"
-                )
-            except Exception:
-                pass
-            await state.clear()
-
-        @c_dp.message(F.text == "📞 Biz bilan bog'lanish")
-        async def delivery_contact(msg: types.Message):
-            await msg.answer(f"📞 Qo'llab-quvvatlash: @{admin_user}")
-
-    # --- D) BARCHA QOLGAN SHABLONLAR UCHUN UNIVERSAL DINAMIK INTERFEYS ---
     else:
         @c_dp.message(CommandStart())
         async def universal_start(msg: types.Message):
@@ -347,21 +275,21 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
             if msg.from_user.id == owner_id:
                 kb.button(text="🔑 Admin Panel")
             kb.adjust(2, 1)
-            await msg.answer(f"👋 **{tpl_info['name']}** botiga xush kelibsiz!\n\nXizmat turidan foydalanish uchun quyidagi tugmalardan birini bosing:", reply_markup=kb.as_markup(resize_keyboard=True))
+            await msg.answer(f"👋 **{tpl_info['name']}** botiga xush kelibsiz!", reply_markup=kb.as_markup(resize_keyboard=True))
 
         @c_dp.message(F.text == "🚀 Xizmatdan foydalanish")
         async def universal_use(msg: types.Message):
-            await msg.answer(f"⚡ **{tpl_info['name']}** muvaffaqiyatli ishlamoqda. Kerakli buyruq yoki so'rovni yuborishingiz mumkin.")
+            await msg.answer(f"⚡ **{tpl_info['name']}** muvaffaqiyatli ishlamoqda.")
 
         @c_dp.message(F.text == "ℹ️ Bot haqida")
         async def universal_info(msg: types.Message):
-            await msg.answer(f"ℹ️ **Bot Yo'nalishi:** {tpl_info['cat']}\n📌 **Shablon ID:** {template_id}\n⚙️ Ishonchli va tezkor xizmat.")
+            await msg.answer(f"ℹ️ **Bot Yo'nalishi:** {tpl_info['cat']}\n📌 **Shablon ID:** {template_id}")
 
         @c_dp.message(F.text == "📞 Aloqa")
         async def universal_contact(msg: types.Message):
             await msg.answer(f"📞 Bosh administrator: @{admin_user}")
 
-    # --- UMUMIY ADMIN PANEL (Barcha shablonlar uchun) ---
+    # --- ADMIN PANEL ---
     @c_dp.message(F.text == "🔑 Admin Panel")
     async def common_admin_panel(msg: types.Message):
         if msg.from_user.id != owner_id:
@@ -377,7 +305,7 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
     async def common_broadcast_start(msg: types.Message, state: FSMContext):
         if msg.from_user.id != owner_id:
             return
-        await msg.answer("📢 Barcha obunachilarga yubormoqchi bo'lgan xabaringizni kiriting:")
+        await msg.answer("📢 Yubormoqchi bo'lgan xabaringizni kiriting:")
         await state.set_state(AdminBroadcastFSM.waiting_message)
 
     @c_dp.message(AdminBroadcastFSM.waiting_message)
@@ -421,6 +349,7 @@ async def register_and_start_client_bot(db_id, token, admin_user, owner_id, temp
     init_client_db(db_id)
     try:
         c_bot = Bot(token=token)
+        await c_bot.delete_webhook(drop_pending_updates=True)
         c_dp = build_client_dispatcher(template_id, db_id, admin_user, owner_id)
         client_bots[db_id] = c_bot
         asyncio.create_task(c_dp.start_polling(c_bot))
@@ -558,7 +487,7 @@ async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
 # --- OBUNANI UZAYTIRISH OQIMI ---
 @dp.message(F.text == "🔄 Obunani Uzaytirish (11,990 so'm)")
 async def start_renew_process(msg: types.Message, state: FSMContext):
-    await msg.answer("🔄 Obunasini uzaytirmoqchi bo'lgan **Bot ID**sini kiriting (Buni '📂 Mening Botlarim' bo'limidan ko'rishingiz mumkin):")
+    await msg.answer("🔄 Obunasini uzaytirmoqchi bo'lgan **Bot ID**sini kiriting:")
     await state.set_state(RenewFSM.waiting_bot_id)
 
 @dp.message(RenewFSM.waiting_bot_id)
@@ -608,7 +537,7 @@ async def process_renew_receipt(msg: types.Message, state: FSMContext):
         logging.error(f"Error sending receipt: {e}")
         await msg.answer("⚠️ Admin botga xabar yuborishda xatolik.")
 
-# --- ADMIN CALLBACK HANDLERLARI (TASDIQLASH / RAD ETISH) ---
+# --- ADMIN CALLBACK HANDLERLARI ---
 @dp.callback_query(F.data.startswith("approve_create:"))
 async def approve_bot_creation(call: types.CallbackQuery):
     if call.from_user.id != ADMIN_ID:
@@ -626,7 +555,7 @@ async def approve_bot_creation(call: types.CallbackQuery):
         template_id = int(template_match.group(1))
         token = token_match.group(1).strip()
         admin_user = admin_match.group(1).strip().replace("@", "")
-    except Exception as err:
+    except Exception:
         await call.answer("❌ Ma'lumotlarni ajratishda xatolik!", show_alert=True)
         return
 
@@ -638,7 +567,7 @@ async def approve_bot_creation(call: types.CallbackQuery):
         owner_id,
         f"🎉 **Botingiz muvaffaqiyatli yaratildi va ishga tushdi!**\n\n"
         f"🤖 Bot turi: **{template_name}**\n"
-        f"🔑 Admin Panel: Botingizda `/start` va `🔑 Admin Panel` tugmasini bosing.\n"
+        f"🔑 Admin Panel: Botingizda `/start` bosing.\n"
         f"⏱ Tugash muddati: **{expire_date}**"
     )
     await call.message.edit_caption(caption=caption + "\n\n✅ **TASDIQLANDI VA BOT ISHGA TUSHIRILDI!**")
@@ -684,6 +613,10 @@ async def reject_payment(call: types.CallbackQuery):
 async def main():
     init_db()
     await start_dummy_server()
+    
+    # TelegramConflictError oldini olish uchun webhook'ni o'chirish
+    await maker_bot.delete_webhook(drop_pending_updates=True)
+    
     await start_all_user_bots()
     logging.info("Main bot started...")
     await dp.start_polling(maker_bot)
