@@ -16,7 +16,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 # =====================================================================
 # 1. SOZLAMALAR (To'g'rilangan holatda)
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAH7UZxIsN9KEAKGfDvznvN6MBnVIQkAfJg")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAFeBojG_3GgzDrrujjuVbecC1gqaEskFrI")
 
 # Admin ID va Karta ma'lumotlari
 ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
