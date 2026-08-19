@@ -14,14 +14,14 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 # =====================================================================
-# 1. SOZLAMALAR (O'zingiz moslab chiqishingiz mumkin)
+# 1. SOZLAMALAR (To'g'rilangan holatda)
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "BOT_TOKENINGIZNI_SHU_YERGA_YOZING")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAH7UZxIsN9KEAKGfDvznvN6MBnVIQkAfJg")
 
 # Admin ID va Karta ma'lumotlari
-ADMIN_ID = int(os.environ.get("899045766", 0))  # <-- ADMIN ID'INGIZNI SHU YERGA YOZING (Masalan: 123456789)
-CARD_NUMBER = os.environ.get("5440810319904917", "5440810319904917")
-CARD_HOLDER = os.environ.get("g/n", "KARTA EGGASI")
+ADMIN_ID = int(os.environ.get("ADMIN_ID", 899045766))
+CARD_NUMBER = os.environ.get("CARD_NUMBER", "5440810319904917")
+CARD_HOLDER = os.environ.get("CARD_HOLDER", "g/n")
 
 CREATE_PRICE = 39990
 RENEW_PRICE = 11990
@@ -60,10 +60,6 @@ class BotCreateFSM(StatesGroup):
 class RenewFSM(StatesGroup):
     waiting_bot_id = State()
     waiting_receipt = State()
-
-class ClientOrderFSM(StatesGroup):
-    waiting_address = State()
-    waiting_phone = State()
 
 class ClientKinoFSM(StatesGroup):
     waiting_code = State()
@@ -614,7 +610,7 @@ async def main():
     init_db()
     await start_dummy_server()
     
-    # TelegramConflictError oldini olish uchun webhook'ni o'chirish
+    # Webhook va eski so'rovlarni avtomatik tozalash (ConflictError oldini oladi)
     await maker_bot.delete_webhook(drop_pending_updates=True)
     
     await start_all_user_bots()
