@@ -16,7 +16,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 # =====================================================================
 # 1. SOZLAMALAR VA RENDER PORTI
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAHtzFW3eFtKOugRi9mp3fXyQJXj0hkVRNI")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAH7UZxIsN9KEAKGfDvznvN6MBnVIQkAfJg")
 
 try:
     ADMIN_ID = int(os.environ.get("ADMIN_ID", 899045766))
