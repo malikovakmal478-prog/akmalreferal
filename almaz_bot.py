@@ -17,7 +17,7 @@ from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 # =====================================================================
 # 1. SOZLAMALAR
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAFrat1Ok1YhPafBnS7srw3IgiT0Ybk4McI")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAF7BepP4Wf1v6-araw4IsyA-RWMZ8_W9hs")
 INITIAL_ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
 PORT = int(os.environ.get("PORT", 8080))
 
