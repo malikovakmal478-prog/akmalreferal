@@ -13,6 +13,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
+from aiogram.client.session.aiohttp import AiohttpSession
 
 # =====================================================================
 # 1. SOZLAMALAR
@@ -21,7 +22,9 @@ MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAF7BepP4Wf1v6-araw4IsyA
 INITIAL_ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
 PORT = int(os.environ.get("PORT", 8080))
 
-maker_bot = Bot(token=MAKER_TOKEN)
+# PythonAnywhere proksisini sozlash (zarur bo'lsa)
+session = AiohttpSession(proxy="http://proxy.server:3128")
+maker_bot = Bot(token=MAKER_TOKEN, session=session)
 dp = Dispatcher(storage=MemoryStorage())
 
 client_bots = {}
@@ -159,6 +162,22 @@ def add_maker_user(user_id, full_name, username):
     conn.commit()
     conn.close()
 
+def save_pending_creation(owner_id, token, admin_user, template_id):
+    conn = sqlite3.connect("constructor_promax.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO pending_creations (owner_id, token, admin_user, template_id) VALUES (?, ?, ?, ?)",
+                   (owner_id, token, admin_user, template_id))
+    conn.commit()
+    conn.close()
+
+def get_pending_creation(owner_id):
+    conn = sqlite3.connect("constructor_promax.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT token, admin_user, template_id FROM pending_creations WHERE owner_id = ?", (owner_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row
+
 def add_user_bot(owner_id, token, admin_user, template_id):
     expire_days = int(get_setting("expire_days", "17"))
     expire = (datetime.now() + timedelta(days=expire_days)).strftime("%Y-%m-%d %H:%M:%S")
@@ -169,6 +188,7 @@ def add_user_bot(owner_id, token, admin_user, template_id):
         VALUES (?, ?, ?, ?, ?, 'active')
     """, (owner_id, token, admin_user, template_id, expire))
     bot_id = cursor.lastrowid
+    cursor.execute("DELETE FROM pending_creations WHERE owner_id = ?", (owner_id,))
     conn.commit()
     conn.close()
     return bot_id, expire
@@ -283,7 +303,7 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
                 kb.button(text="➕ Kino Qo'shish (Admin)")
                 kb.button(text="🔑 Admin Panel")
             kb.adjust(2, 1)
-            await msg.answer(f"🎬 **KINO BOT PRO**ga xush kelibsiz!\n\nKino kodini yuboring yoki menyudan foydalaning:", reply_markup=kb.as_markup(resize_keyboard=True))
+            await msg.answer("🎬 **KINO BOT PRO**ga xush kelibsiz!\n\nKino kodini yuboring yoki menyudan foydalaning:", reply_markup=kb.as_markup(resize_keyboard=True))
 
         @c_dp.message(F.text == "🔍 Kino qidirish (Kod bo'yicha)")
         async def kino_search_prompt(msg: types.Message, state: FSMContext):
@@ -415,7 +435,7 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
 async def register_and_start_client_bot(db_id, token, admin_user, owner_id, template_id=1):
     init_client_db(db_id)
     try:
-        c_bot = Bot(token=token)
+        c_bot = Bot(token=token, session=session)
         await c_bot.delete_webhook(drop_pending_updates=True)
         c_dp = build_client_dispatcher(template_id, db_id, admin_user, owner_id)
         client_bots[db_id] = c_bot
@@ -470,7 +490,7 @@ async def cmd_start(msg: types.Message):
         reply_markup=main_maker_menu()
     )
 
-# --- BOSH ADMIN PANEL (COMMAND & HANDLERLAR) ---
+# --- BOSH ADMIN PANEL ---
 @dp.message(Command("admin"))
 async def admin_panel_cmd(msg: types.Message):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
@@ -515,7 +535,7 @@ async def admin_broadcast_call(call: types.CallbackQuery, state: FSMContext):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     if call.from_user.id != admin_id: return
 
-    await call.message.answer("📢 Barcha foydalanuvchilarga yubormoqchi bo'lgan **xabaringizni** (tekst, rasm, va h.k.) yuboring:")
+    await call.message.answer("📢 Barcha foydalanuvchilarga yubormoqchi bo'lgan **xabaringizni** yuboring:")
     await state.set_state(MakerAdminFSM.waiting_broadcast)
     await call.answer()
 
@@ -540,7 +560,6 @@ async def process_maker_broadcast(msg: types.Message, state: FSMContext):
     await msg.answer(f"✅ Xabar **{count}** ta foydalanuvchiga muvaffaqiyatli yuborildi!")
     await state.clear()
 
-# --- ADMINLIKNI O'TKAZISH ---
 @dp.callback_query(F.data == "admin_transfer")
 async def admin_transfer_call(call: types.CallbackQuery, state: FSMContext):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
@@ -566,7 +585,6 @@ async def process_transfer_admin(msg: types.Message, state: FSMContext):
         pass
     await state.clear()
 
-# --- KARTA VA NARXLARNI TAHRIRLASH ---
 @dp.callback_query(F.data == "admin_edit_pricing")
 async def admin_edit_pricing_call(call: types.CallbackQuery):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
@@ -603,10 +621,10 @@ async def process_pricing_set_callbacks(call: types.CallbackQuery, state: FSMCon
         await call.message.answer("👤 Yangi **Karta egasi ismini** kiriting:")
         await state.set_state(MakerAdminFSM.waiting_card_holder)
     elif act == "set_create_price":
-        await call.message.answer("💵 Bot yaratish uchun **yangi narxni** kiriting (faqat raqam, masalan: 39990):")
+        await call.message.answer("💵 Bot yaratish uchun **yangi narxni** kiriting:")
         await state.set_state(MakerAdminFSM.waiting_create_price)
     elif act == "set_renew_price":
-        await call.message.answer("🔄 Obunani uzaytirish uchun **yangi narxni** kiriting (faqat raqam):")
+        await call.message.answer("🔄 Obunani uzaytirish uchun **yangi narxni** kiriting:")
         await state.set_state(MakerAdminFSM.waiting_renew_price)
     await call.answer()
 
@@ -636,7 +654,6 @@ async def set_renew_price_val(msg: types.Message, state: FSMContext):
     await msg.answer("✅ Obuna uzaytirish narxi yangilandi!", reply_markup=main_maker_menu())
     await state.clear()
 
-# --- TUGMALARNI TAHRIRLASH ---
 @dp.callback_query(F.data == "admin_edit_btns")
 async def admin_edit_btns_call(call: types.CallbackQuery):
     b = InlineKeyboardBuilder()
@@ -653,7 +670,7 @@ async def admin_edit_btns_call(call: types.CallbackQuery):
 async def btn_edit_choice(call: types.CallbackQuery, state: FSMContext):
     key = call.data.split(":")[1]
     await state.update_data(target_key=key)
-    await call.message.answer(f"✏️ `{key}` uchun **yangi matnni** kiriting (masalan: `🤖 Yangi Bot Yaratish`):")
+    await call.message.answer(f"✏️ `{key}` uchun **yangi matnni** kiriting:")
     await state.set_state(MakerAdminFSM.waiting_btn_val)
     await call.answer()
 
@@ -665,7 +682,96 @@ async def btn_edit_save(msg: types.Message, state: FSMContext):
     await msg.answer("✅ Tugma matni muvaffaqiyatli o'zgartirildi!", reply_markup=main_maker_menu())
     await state.clear()
 
-# --- ASOSIY MENYU XIZMATLARI (DYNAMIC MATCHING) ---
+# --- BOT YARATISH BOSQICHALARI ---
+@dp.message(F.text.contains("Bot Yaratish"))
+async def start_create_bot(msg: types.Message, state: FSMContext):
+    await msg.answer("📚 Yaratmoqchi bo'lgan botingiz **shablon ID-sini** kiriting (1 dan 100 gacha, masalan: `1` yoki `2`):")
+    await state.set_state(BotCreateFSM.waiting_template)
+
+@dp.message(BotCreateFSM.waiting_template)
+async def process_template_id(msg: types.Message, state: FSMContext):
+    if not msg.text.isdigit() or not (1 <= int(msg.text) <= 100):
+        await msg.answer("❌ Noto'g'ri ID. 1 dan 100 gacha bo'lgan raqam kiriting:")
+        return
+    template_id = int(msg.text)
+    await state.update_data(template_id=template_id)
+    
+    await msg.answer(
+        "🤖 **Bot Tokenini kiriting:**\n\n"
+        "1. @BotFather 'ga bering.\n"
+        "2. `/newbot` buyrug'i orqali yangi bot yarating.\n"
+        "3. Berilgan **API Token**ni bu yerga yuboring:"
+    )
+    await state.set_state(BotCreateFSM.waiting_token)
+
+@dp.message(BotCreateFSM.waiting_token)
+async def process_bot_token(msg: types.Message, state: FSMContext):
+    token = msg.text.strip()
+    if not re.match(r"^\d+:[A-Za-z0-9_-]+$", token):
+        await msg.answer("❌ Noto'g'ri Token formati! Token `123456:ABC...` ko'rinishida bo'ladi. Qayta kiriting:")
+        return
+    await state.update_data(token=token)
+    await msg.answer("👤 O'zingizning shaxsiy Telegram **username**ingizni kiriting (masalan: `durov` yoki `@durov`):")
+    await state.set_state(BotCreateFSM.waiting_admin_user)
+
+@dp.message(BotCreateFSM.waiting_admin_user)
+async def process_admin_user(msg: types.Message, state: FSMContext):
+    admin_user = msg.text.strip().replace("@", "")
+    await state.update_data(admin_user=admin_user)
+
+    data = await state.get_data()
+    save_pending_creation(msg.from_user.id, data["token"], admin_user, data["template_id"])
+
+    c_price = int(get_setting("create_price", "39990"))
+    card_num = get_setting("card_number")
+    card_holder = get_setting("card_holder")
+
+    text = (
+        f"💳 **BOT YARATISH TO'LOVI:**\n\n"
+        f"🤖 Shablon ID: `{data['template_id']}`\n"
+        f"💵 Narxi: **{c_price:,} so'm**\n"
+        f"💳 Karta raqam: `{card_num}` ({card_holder})\n\n"
+        f"📌 To'lovni amalga oshirib, **chekni rasm holatida** yuboring:"
+    )
+    await msg.answer(text)
+    await state.set_state(BotCreateFSM.waiting_receipt)
+
+@dp.message(BotCreateFSM.waiting_receipt)
+async def process_create_receipt(msg: types.Message, state: FSMContext):
+    photo_id = None
+    if msg.photo:
+        photo_id = msg.photo[-1].file_id
+    elif msg.document and msg.document.mime_type and msg.document.mime_type.startswith("image/"):
+        photo_id = msg.document.file_id
+
+    if not photo_id:
+        await msg.answer("❌ Iltimos, chekni **rasm** holatida yuboring!")
+        return
+
+    data = await state.get_data()
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Botni Tasdiqlash va Yaratish", callback_data=f"approve_create:{msg.from_user.id}")
+    builder.button(text="❌ Rad etish", callback_data=f"reject:{msg.from_user.id}")
+    builder.adjust(1)
+
+    caption = (
+        f"📥 **YANGI BOT YARATISH CHEKI!**\n\n"
+        f"👤 Foydalanuvchi: {msg.from_user.full_name}\n"
+        f"🆔 ID: `{msg.from_user.id}`\n"
+        f"📌 Shablon ID: `{data['template_id']}`\n"
+        f"🔑 Admin: @{data['admin_user']}"
+    )
+
+    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
+    try:
+        await maker_bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=builder.as_markup())
+        await msg.answer("⌛ Chek adminga yuborildi! Tasdiqlangach botingiz ishga tushiriladi.")
+    except Exception as e:
+        logging.error(f"Adminga yaratish cheki yuborishda xatolik: {e}")
+        await msg.answer("⚠️ Chekni adminga yuborib bo'lmadi.")
+
+    await state.clear()
+
 @dp.message(F.text.contains("100 ta Botlar Katalogi"))
 async def show_catalog(msg: types.Message):
     text = "📚 **PRO MAX BOTLAR KATALOGI:**\n\n"
@@ -691,7 +797,6 @@ async def support_info(msg: types.Message):
     admin_id = get_setting("admin_id", str(INITIAL_ADMIN_ID))
     await msg.answer(f"📞 Qo'llab-quvvatlash markazi admin ID: `{admin_id}`")
 
-# --- OBUNANI UZAYTIRISH OQIMI ---
 @dp.message(F.text.contains("Obunani Uzaytirish"))
 async def start_renew(msg: types.Message, state: FSMContext):
     await msg.answer("🔄 Obunasini uzaytirmoqchi bo'lgan **Bot ID**ingizni kiriting:")
@@ -756,193 +861,76 @@ async def process_renew_receipt(msg: types.Message, state: FSMContext):
 
     await state.clear()
 
-# --- BOT YARATISH OQIMI ---
-@dp.message(F.text.contains("Bot Yaratish"))
-async def start_bot_creation(msg: types.Message, state: FSMContext):
-    await msg.answer("1️⃣ Yaratmoqchi bo'lgan botingiz **Shablon ID**sini kiriting (1 dan 100 gacha raqam):")
-    await state.set_state(BotCreateFSM.waiting_template)
-
-@dp.message(BotCreateFSM.waiting_template)
-async def process_template(msg: types.Message, state: FSMContext):
-    if not msg.text or not msg.text.isdigit():
-        await msg.answer("❌ Shablon IDsi faqat raqamlardan iborat bo'lishi kerak (1-100):")
-        return
-    t_id = int(msg.text)
-    if t_id not in BOT_TEMPLATES:
-        await msg.answer("❌ Noto'g'ri shablon ID. 1 dan 100 gacha raqam kiriting:")
-        return
-
-    await state.update_data(template_id=t_id)
-    tpl = BOT_TEMPLATES[t_id]
-    await msg.answer(
-        f"✅ Tanlangan shablon: **{tpl['name']}**\n\n"
-        f"2️⃣ BotFather'dan olingan **BOT TOKEN**ni yuboring:"
-    )
-    await state.set_state(BotCreateFSM.waiting_token)
-
-@dp.message(BotCreateFSM.waiting_token)
-async def process_token(msg: types.Message, state: FSMContext):
-    token = msg.text.strip()
-    if ":" not in token or len(token) < 20:
-        await msg.answer("❌ Noto'g'ri bot token formati! BotFather bergan tokenni qayta yuboring:")
-        return
-
-    await state.update_data(token=token)
-    await msg.answer("3️⃣ Ushbu bot uchun mas'ul **Admin Telegram username**ini yuboring (masalan: `username`):")
-    await state.set_state(BotCreateFSM.waiting_admin_user)
-
-@dp.message(BotCreateFSM.waiting_admin_user)
-async def process_admin_user(msg: types.Message, state: FSMContext):
-    admin_user = msg.text.strip().replace("@", "")
-    await state.update_data(admin_user=admin_user)
-
-    c_price = int(get_setting("create_price", "39990"))
-    card_num = get_setting("card_number")
-    card_holder = get_setting("card_holder")
-
-    text = (
-        f"💳 **BOT YARATISH UCHUN TO'LOV:**\n\n"
-        f"💵 Narx: **{c_price:,} so'm**\n"
-        f"💳 Karta: `{card_num}` ({card_holder})\n\n"
-        f"📌 To'lovni amalga oshirib, **chekni rasm (skrinshot)** holatida yuboring:"
-    )
-    await msg.answer(text)
-    await state.set_state(BotCreateFSM.waiting_receipt)
-
-@dp.message(BotCreateFSM.waiting_receipt)
-async def process_receipt_and_send_admin(msg: types.Message, state: FSMContext):
-    photo_id = None
-    if msg.photo:
-        photo_id = msg.photo[-1].file_id
-    elif msg.document and msg.document.mime_type and msg.document.mime_type.startswith("image/"):
-        photo_id = msg.document.file_id
-
-    if not photo_id:
-        await msg.answer("❌ Iltimos, to'lov chekini rasm (skrinshot) holatida yuboring!")
-        return
-
-    data = await state.get_data()
-    
-    conn = sqlite3.connect("constructor_promax.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT OR REPLACE INTO pending_creations (owner_id, token, admin_user, template_id) VALUES (?, ?, ?, ?)",
-        (msg.from_user.id, data.get("token"), data.get("admin_user"), data.get("template_id"))
-    )
-    conn.commit()
-    conn.close()
-
-    builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Tasdiqlash va Yaratish", callback_data=f"approve_create:{msg.from_user.id}")
-    builder.button(text="❌ Rad etish", callback_data=f"reject:{msg.from_user.id}")
-    builder.adjust(1)
-
-    caption = (
-        f"📥 **YANGI BOT YARATISH CHEKI!**\n\n"
-        f"👤 Foydalanuvchi: {msg.from_user.full_name}\n"
-        f"🆔 ID: `{msg.from_user.id}`\n"
-        f"📌 Shablon ID: `{data.get('template_id')}`\n"
-        f"🔑 Token: `{data.get('token')}`\n"
-        f"👨‍💻 Admin: @{data.get('admin_user')}"
-    )
-
-    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
-
-    try:
-        await maker_bot.send_photo(
-            chat_id=admin_id,
-            photo=photo_id,
-            caption=caption,
-            reply_markup=builder.as_markup()
-        )
-        await msg.answer("⌛ Chek adminga yuborildi! Tasdiqlangach botingiz avtomatik ishga tushadi.")
-    except Exception as e:
-        logging.error(f"Adminga chek yuborishda xatolik: {e}")
-        await msg.answer("⚠️ Chekni adminga yuborib bo'lmadi. Admin botga `/start` bosganini tekshiring.")
-
-    await state.clear()
-
-# --- ADMIN TASDIQLASH / RAD ETISH CALLBACK HANDLERLARI ---
-@dp.callback_query(F.data.startswith("approve_create:"))
-async def approve_create_callback(call: types.CallbackQuery):
-    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
-    if call.from_user.id != admin_id:
-        return
-
-    owner_id = int(call.data.split(":")[1])
-    conn = sqlite3.connect("constructor_promax.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT token, admin_user, template_id FROM pending_creations WHERE owner_id = ?", (owner_id,))
-    row = cursor.fetchone()
-
-    if not row:
-        await call.answer("❌ Ma'lumot topilmadi yoki allaqachon tasdiqlangan!", show_alert=True)
-        conn.close()
-        return
-
-    token, admin_user, template_id = row
-    cursor.execute("DELETE FROM pending_creations WHERE owner_id = ?", (owner_id,))
-    conn.commit()
-    conn.close()
-
-    bot_id, expire = add_user_bot(owner_id, token, admin_user, template_id)
-    await register_and_start_client_bot(bot_id, token, admin_user, owner_id, template_id)
-
-    await call.message.edit_caption(caption=f"{call.message.caption}\n\n✅ **TASDIQLANDI!** (Bot ID: `{bot_id}`)")
-    try:
-        await maker_bot.send_message(
-            owner_id,
-            f"🎉 **Tabriklaymiz!** Botingiz muvaffaqiyatli yaratildi va ishga tushdi!\n\n"
-            f"🆔 Bot ID: `{bot_id}`\n"
-            f"⏳ Amal qilish muddati: **{expire}**"
-        )
-    except Exception:
-        pass
-    await call.answer("Bot muvaffaqiyatli yaratildi va ishga tushirildi!")
-
+# --- TASDIQLASH VA RAD ETISH HANDLERLARI ---
 @dp.callback_query(F.data.startswith("approve_renew:"))
 async def approve_renew_callback(call: types.CallbackQuery):
-    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
-    if call.from_user.id != admin_id:
-        return
-
     parts = call.data.split(":")
     bot_id = int(parts[1])
-    owner_id = int(parts[2])
+    user_id = int(parts[2])
 
     new_expire = extend_bot_subscription(bot_id)
-    await call.message.edit_caption(caption=f"{call.message.caption}\n\n✅ **OBUNA UZAYTIRILDI!**\nYangi muddat: **{new_expire}**")
+    if new_expire:
+        await call.message.edit_caption(caption=f"{call.message.caption}\n\n✅ **ADMIN TAROFIDAN TASDIQLANDI!**")
+        try:
+            await maker_bot.send_message(user_id, f"🎉 **Obunangiz muvaffaqiyatli uzaytirildi!**\n🤖 Bot ID: `{bot_id}`\n⏳ Yangi tugash muddati: {new_expire}")
+        except Exception:
+            pass
+    else:
+        await call.answer("❌ Bot topilmadi!", show_alert=True)
+
+@dp.callback_query(F.data.startswith("approve_create:"))
+async def approve_create_callback(call: types.CallbackQuery):
+    owner_id = int(call.data.split(":")[1])
+    pending = get_pending_creation(owner_id)
+
+    if not pending:
+        await call.answer("❌ Bot ma'lumotlari topilmadi!", show_alert=True)
+        return
+
+    token, admin_user, template_id = pending
+    bot_id, expire = add_user_bot(owner_id, token, admin_user, template_id)
+
+    # Botni registratsiya qilish va yurgizish
+    await register_and_start_client_bot(bot_id, token, admin_user, owner_id, template_id)
+
+    await call.message.edit_caption(caption=f"{call.message.caption}\n\n✅ **BOT TASDIQLANDI VA ISHGA TUSHIRILDI!**")
     try:
         await maker_bot.send_message(
             owner_id,
-            f"✅ **Obuna uzaytirildi!**\n\n🆔 Bot ID: `{bot_id}`\n⏳ Yangi muddat: **{new_expire}**"
+            f"🎉 **Tabriklaymiz! Botingiz muvaffaqiyatli yaratildi!**\n\n"
+            f"🆔 **Bot ID:** `{bot_id}`\n"
+            f"🤖 **Shablon ID:** {template_id}\n"
+            f"⏳ **Amal qilish muddati:** {expire}\n\n"
+            f"🚀 Botingizga o'tib `/start` tugmasini bosing!"
         )
     except Exception:
         pass
-    await call.answer("Obuna uzaytirildi!")
 
 @dp.callback_query(F.data.startswith("reject:"))
 async def reject_callback(call: types.CallbackQuery):
-    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
-    if call.from_user.id != admin_id:
-        return
-
-    owner_id = int(call.data.split(":")[1])
-    await call.message.edit_caption(caption=f"{call.message.caption}\n\n❌ **RAD ETILDI!**")
+    user_id = int(call.data.split(":")[1])
+    await call.message.edit_caption(caption=f"{call.message.caption}\n\n❌ **ADMIN TAROFIDAN RAD ETILDI!**")
     try:
-        await maker_bot.send_message(owner_id, "❌ Sizning to'lov chekingiz admin tomonidan rad etildi.")
+        await maker_bot.send_message(user_id, "❌ **To'loviniz rad etildi.** Iltimos, ma'lumotlar va chekni qayta tekshirib ko'ring.")
     except Exception:
         pass
-    await call.answer("To'lov rad etildi.")
 
 # =====================================================================
-# 8. ASOSIY ISHGA TUSHIRISH FUNKSIYASI
+# 8. ASOSIY ISHGA TUSHIRISH (MAIN)
 # =====================================================================
 async def main():
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    
+    # Bazani ishga tushirish
     init_db()
+    
+    # Render uchun dummy web serverni ishga tushirish
     await start_dummy_server()
+    
+    # Barcha mijoz botlarini fonda ishga tushirish
     await start_all_user_bots()
+    
+    # Maker Botni webhooklaridan tozalab pollingni boshlash
     await maker_bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(maker_bot)
 
