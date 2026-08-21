@@ -1,2 +1,3 @@
 aiogram==3.10.0
 requests==2.34.2
+aiohttp-socks
