@@ -17,9 +17,11 @@ from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 # =====================================================================
 # 1. SOZLAMALAR
 # =====================================================================
-MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAHIE-QOYz8weyjOacQot_guXHZ55malU6M")
+MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAFcmILx8MBzMmS511KONbjfimzsxd1XhPo")
 INITIAL_ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
 PORT = int(os.environ.get("PORT", 8080))
+
+logging.basicConfig(level=logging.INFO)
 
 maker_bot = Bot(token=MAKER_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -568,11 +570,12 @@ async def admin_transfer_call(call: types.CallbackQuery, state: FSMContext):
 
 @dp.message(MakerAdminFSM.waiting_new_admin_id)
 async def process_transfer_admin(msg: types.Message, state: FSMContext):
-    if not msg.text or not msg.text.isdigit():
+    clean_text = re.sub(r"\D", "", msg.text or "")
+    if not clean_text:
         await msg.answer("❌ Noto'g'ri ID. Faqat raqamlardan iborat Telegram ID kiriting:")
         return
 
-    new_admin_id = int(msg.text)
+    new_admin_id = int(clean_text)
     set_setting("admin_id", new_admin_id)
 
     await msg.answer(f"✅ Adminlik muvaffaqiyatli o'tkazildi!\nYangi Admin ID: `{new_admin_id}`")
@@ -639,15 +642,17 @@ async def set_card_holder_val(msg: types.Message, state: FSMContext):
 
 @dp.message(MakerAdminFSM.waiting_create_price)
 async def set_create_price_val(msg: types.Message, state: FSMContext):
-    if not msg.text.isdigit(): return await msg.answer("❌ Faqat raqam kiriting:")
-    set_setting("create_price", msg.text.strip())
+    clean_text = re.sub(r"\D", "", msg.text or "")
+    if not clean_text: return await msg.answer("❌ Faqat raqam kiriting:")
+    set_setting("create_price", clean_text)
     await msg.answer("✅ Bot yaratish narxi yangilandi!", reply_markup=main_maker_menu())
     await state.clear()
 
 @dp.message(MakerAdminFSM.waiting_renew_price)
 async def set_renew_price_val(msg: types.Message, state: FSMContext):
-    if not msg.text.isdigit(): return await msg.answer("❌ Faqat raqam kiriting:")
-    set_setting("renew_price", msg.text.strip())
+    clean_text = re.sub(r"\D", "", msg.text or "")
+    if not clean_text: return await msg.answer("❌ Faqat raqam kiriting:")
+    set_setting("renew_price", clean_text)
     await msg.answer("✅ Obuna uzaytirish narxi yangilandi!", reply_markup=main_maker_menu())
     await state.clear()
 
@@ -715,10 +720,11 @@ async def start_create_bot(msg: types.Message, state: FSMContext):
 
 @dp.message(BotCreateFSM.waiting_template)
 async def process_template_id(msg: types.Message, state: FSMContext):
-    if not msg.text.isdigit() or not (1 <= int(msg.text) <= 100):
+    clean_text = re.sub(r"\D", "", msg.text or "")
+    if not clean_text or not (1 <= int(clean_text) <= 100):
         await msg.answer("❌ Noto'g'ri ID. 1 dan 100 gacha bo'lgan raqam kiriting:")
         return
-    template_id = int(msg.text)
+    template_id = int(clean_text)
     await state.update_data(template_id=template_id)
     
     await msg.answer(
@@ -756,66 +762,43 @@ async def process_admin_user(msg: types.Message, state: FSMContext):
         f"🤖 Shablon ID: `{data['template_id']}`\n"
         f"💵 Narxi: **{c_price:,} so'm**\n"
         f"💳 Karta raqam: `{card_num}` ({card_holder})\n\n"
-        f"📌 To'lovni amalga oshirib, **chekni rasm holatida** bu yerga yuboring:"
+        f"📌 To'lovni amalga oshirib, **chekni rasm holatida** yuboring:"
     )
     await msg.answer(text)
     await state.set_state(BotCreateFSM.waiting_receipt)
 
 @dp.message(BotCreateFSM.waiting_receipt, F.photo)
 async def process_create_receipt(msg: types.Message, state: FSMContext):
+    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     pending = get_pending_creation(msg.from_user.id)
     if not pending:
-        await msg.answer("❌ Ma'lumotlar topilmadi. Qaytadan boshlang.")
+        await msg.answer("❌ Arizangiz topilmadi, iltimos qaytadan urinib ko'ring.")
         await state.clear()
         return
 
-    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
-    
-    user_link = f"@{msg.from_user.username}" if msg.from_user.username else msg.from_user.full_name
-    caption_text = (
+    b = InlineKeyboardBuilder()
+    b.button(text="✅ Tasdiqlash", callback_data=f"approve_create:{msg.from_user.id}")
+    b.button(text="❌ Rad etish", callback_data=f"reject_create:{msg.from_user.id}")
+
+    text = (
         f"📥 **YANGI BOT YARATISH SO'ROVI**\n\n"
-        f"👤 **Foydalanuvchi:** {user_link}\n"
+        f"👤 **Foydalanuvchi:** @{msg.from_user.username or 'yo_q'}\n"
         f"🆔 **ID:** `{msg.from_user.id}`\n"
-        f"🤖 **Shablon ID:** `{pending[2]}`\n"
+        f"📌 **Shablon ID:** `{pending[2]}`\n"
         f"🔑 **Token:** `{pending[0]}`\n"
         f"👤 **Admin User:** @{pending[1]}"
     )
 
-    b = InlineKeyboardBuilder()
-    b.button(text="✅ Tasdiqlash", callback_data=f"approve_create_{msg.from_user.id}")
-    b.button(text="❌ Rad etish", callback_data=f"reject_create_{msg.from_user.id}")
-    b.adjust(2)
-
-    try:
-        await maker_bot.send_photo(
-            chat_id=admin_id,
-            photo=msg.photo[-1].file_id,
-            caption=caption_text,
-            reply_markup=b.as_markup()
-        )
-        await msg.answer("✅ Chek Bosh Adminga yuborildi! Tekshirilib, tez orada botingiz faollashtiriladi.")
-    except Exception as e:
-        logging.error(f"Adminga chek yuborishda xatolik: {e}")
-        # Agar saqlangan admin_id bloklangan bo'lsa, zaxira sifatida INITIAL_ADMIN_ID ga yuboradi
-        try:
-            await maker_bot.send_photo(
-                chat_id=INITIAL_ADMIN_ID,
-                photo=msg.photo[-1].file_id,
-                caption=caption_text,
-                reply_markup=b.as_markup()
-            )
-            await msg.answer("✅ Chek Bosh Adminga yuborildi!")
-        except Exception:
-            await msg.answer("❌ Adminga xabar yuborishda xatolik yuz berdi. Iltimos adminga muloqotga chiqing.")
-
+    await maker_bot.send_photo(chat_id=admin_id, photo=msg.photo[-1].file_id, caption=text, reply_markup=b.as_markup())
+    await msg.answer("✅ Chek Bosh Adminga yuborildi! Tekshirilib, tez orada botingiz faollashtiriladi.")
     await state.clear()
 
-# --- OBUNANI UZAYTIRISH (RENEW) ---
+# --- OBUNANI UZAYTIRISH BOSQICHALARI ---
 @dp.message(F.text.contains("Obunani Uzaytirish"))
-async def start_renew(msg: types.Message, state: FSMContext):
+async def start_renew_bot(msg: types.Message, state: FSMContext):
     bots = get_user_bots_by_owner(msg.from_user.id)
     if not bots:
-        await msg.answer("❌ Sizda uzaytiradigan botlar mavjud emas.")
+        await msg.answer("❌ Sizda uzaytirish uchun faol botlar topilmadi.")
         return
 
     text = "🔄 **Uzaytirmoqchi bo'lgan botingiz ID raqamini kiriting:**\n\n"
@@ -827,11 +810,12 @@ async def start_renew(msg: types.Message, state: FSMContext):
 
 @dp.message(RenewFSM.waiting_bot_id)
 async def process_renew_bot_id(msg: types.Message, state: FSMContext):
-    if not msg.text.isdigit():
-        await msg.answer("❌ Noto'g'ri ID format. Qaytadan kiriting:")
+    clean_text = re.sub(r"\D", "", msg.text or "")
+    if not clean_text:
+        await msg.answer("❌ Noto'g'ri ID format. Iltimos, faqat bot ID raqamini kiriting (masalan: 1):")
         return
 
-    bot_id = int(msg.text)
+    bot_id = int(clean_text)
     await state.update_data(renew_bot_id=bot_id)
 
     r_price = int(get_setting("renew_price", "11990"))
@@ -850,54 +834,40 @@ async def process_renew_bot_id(msg: types.Message, state: FSMContext):
 
 @dp.message(RenewFSM.waiting_receipt, F.photo)
 async def process_renew_receipt(msg: types.Message, state: FSMContext):
+    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     data = await state.get_data()
     bot_id = data.get("renew_bot_id")
-    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
 
-    user_link = f"@{msg.from_user.username}" if msg.from_user.username else msg.from_user.full_name
-    caption_text = (
+    b = InlineKeyboardBuilder()
+    b.button(text="✅ Tasdiqlash", callback_data=f"approve_renew:{bot_id}:{msg.from_user.id}")
+    b.button(text="❌ Rad etish", callback_data=f"reject_renew:{msg.from_user.id}")
+
+    text = (
         f"🔄 **OBUNANI UZAYTIRISH SO'ROVI**\n\n"
-        f"👤 **Foydalanuvchi:** {user_link}\n"
-        f"🆔 **ID:** `{msg.from_user.id}`\n"
+        f"👤 **Foydalanuvchi:** @{msg.from_user.username or 'yo_q'}\n"
+        f"🆔 **User ID:** `{msg.from_user.id}`\n"
         f"🤖 **Bot ID:** `{bot_id}`"
     )
 
-    b = InlineKeyboardBuilder()
-    b.button(text="✅ Uzaytirishni Tasdiqlash", callback_data=f"approve_renew_{bot_id}_{msg.from_user.id}")
-    b.button(text="❌ Rad etish", callback_data=f"reject_renew_{msg.from_user.id}")
-    b.adjust(1)
-
-    try:
-        await maker_bot.send_photo(
-            chat_id=admin_id,
-            photo=msg.photo[-1].file_id,
-            caption=caption_text,
-            reply_markup=b.as_markup()
-        )
-        await msg.answer("✅ Chek Bosh Adminga yuborildi! Tekshirilib, obunangiz uzaytiriladi.")
-    except Exception as e:
-        logging.error(f"Renew receipt error: {e}")
-        await msg.answer("❌ Xatolik yuz berdi. Iltimos adminga murojaat qiling.")
-
+    await maker_bot.send_photo(chat_id=admin_id, photo=msg.photo[-1].file_id, caption=text, reply_markup=b.as_markup())
+    await msg.answer("✅ Chek Bosh Adminga yuborildi! Tekshirilib, tez orada botingiz faollashtiriladi.")
     await state.clear()
 
-# --- ADMIN TASDIQLASH VA RAD ETISH CALLBACK'LARI ---
-@dp.callback_query(F.data.startswith("approve_create_"))
-async def approve_create_callback(call: types.CallbackQuery):
+# --- ADMIN TARAFI TASDIQLASH / RAD ETISH ---
+@dp.callback_query(F.data.startswith("approve_create:"))
+async def approve_create_call(call: types.CallbackQuery):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     if call.from_user.id != admin_id: return
 
-    user_id = int(call.data.split("_")[2])
+    user_id = int(call.data.split(":")[1])
     pending = get_pending_creation(user_id)
-
     if not pending:
-        await call.answer("❌ Kutilayotgan bot ma'lumotlari topilmadi!", show_alert=True)
+        await call.answer("❌ Arizaga oid ma'lumot topilmadi!", show_alert=True)
         return
 
     token, admin_user, template_id = pending
     bot_id, expire = add_user_bot(user_id, token, admin_user, template_id)
-
-    # Botni ishga tushirish
+    
     await register_and_start_client_bot(bot_id, token, admin_user, user_id, template_id)
 
     await call.message.edit_caption(caption=call.message.caption + f"\n\n✅ **TASDIQLANDI!** (Bot ID: #{bot_id})")
@@ -906,57 +876,57 @@ async def approve_create_callback(call: types.CallbackQuery):
             user_id,
             f"🎉 **Botingiz muvaffaqiyatli yaratildi va ishga tushirildi!**\n\n"
             f"🆔 Bot ID: `{bot_id}`\n"
-            f"⏱ Amal qilish muddati: **{expire}** gacha."
+            f"⏳ Amal qilish muddati: **{expire}** gacha"
         )
     except Exception:
         pass
     await call.answer()
 
-@dp.callback_query(F.data.startswith("reject_create_"))
-async def reject_create_callback(call: types.CallbackQuery):
+@dp.callback_query(F.data.startswith("reject_create:"))
+async def reject_create_call(call: types.CallbackQuery):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     if call.from_user.id != admin_id: return
 
-    user_id = int(call.data.split("_")[2])
+    user_id = int(call.data.split(":")[1])
     await call.message.edit_caption(caption=call.message.caption + "\n\n❌ **RAD ETILDI!**")
     try:
-        await maker_bot.send_message(user_id, "❌ To'lov chekingiz rad etildi. Qayta urinib ko'ring yoki adminga murojaat qiling.")
+        await maker_bot.send_message(user_id, "❌ Botingizni yaratish so'rovi rad etildi. To'lov chekida xatolik bo'lishi mumkin.")
     except Exception:
         pass
     await call.answer()
 
-@dp.callback_query(F.data.startswith("approve_renew_"))
-async def approve_renew_callback(call: types.CallbackQuery):
+@dp.callback_query(F.data.startswith("approve_renew:"))
+async def approve_renew_call(call: types.CallbackQuery):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     if call.from_user.id != admin_id: return
 
-    parts = call.data.split("_")
-    bot_id = int(parts[2])
-    user_id = int(parts[3])
+    parts = call.data.split(":")
+    bot_id = int(parts[1])
+    user_id = int(parts[2])
 
     new_expire = extend_bot_subscription(bot_id)
-    await call.message.edit_caption(caption=call.message.caption + f"\n\n✅ **OBUNA UZAYTIRILDI!** (Yangi muddat: {new_expire})")
 
+    await call.message.edit_caption(caption=call.message.caption + f"\n\n✅ **OBUNA UZAYTIRILDI!** (Yangi muddat: {new_expire})")
     try:
         await maker_bot.send_message(
             user_id,
             f"🎉 **Botingiz obunasi muvaffaqiyatli uzaytirildi!**\n\n"
-            f"🤖 Bot ID: `{bot_id}`\n"
-            f"⏳ Yangi amal qilish muddati: **{new_expire}**"
+            f"🆔 Bot ID: `{bot_id}`\n"
+            f"⏳ Yangi amal qilish muddati: **{new_expire}** gacha"
         )
     except Exception:
         pass
     await call.answer()
 
-@dp.callback_query(F.data.startswith("reject_renew_"))
-async def reject_renew_callback(call: types.CallbackQuery):
+@dp.callback_query(F.data.startswith("reject_renew:"))
+async def reject_renew_call(call: types.CallbackQuery):
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     if call.from_user.id != admin_id: return
 
-    user_id = int(call.data.split("_")[2])
-    await call.message.edit_caption(caption=call.message.caption + "\n\n❌ **RAD ETILDI!**")
+    user_id = int(call.data.split(":")[1])
+    await call.message.edit_caption(caption=call.message.caption + "\n\n❌ **OBUNA UZAYTIRISH RAD ETILDI!**")
     try:
-        await maker_bot.send_message(user_id, "❌ Obunani uzaytirish to'lovi rad etildi.")
+        await maker_bot.send_message(user_id, "❌ Obunani uzaytirish so'rovingiz rad etildi.")
     except Exception:
         pass
     await call.answer()
@@ -965,16 +935,9 @@ async def reject_renew_callback(call: types.CallbackQuery):
 # 8. ASOSIY ISHGA TUSHIRISH
 # =====================================================================
 async def main():
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     init_db()
-
-    # Render serverini ishga tushirish
     await start_dummy_server()
-
-    # Barcha mijoz botlarni yuklab olish va yurgizish
     await start_all_user_bots()
-
-    # Maker bot webhook tozalanadi va polling boshlanadi
     await maker_bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(maker_bot)
 
