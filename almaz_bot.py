@@ -13,7 +13,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
-from aiogram.client.session.aiohttp import AiohttpSession
 
 # =====================================================================
 # 1. SOZLAMALAR
@@ -22,9 +21,8 @@ MAKER_TOKEN = os.environ.get("MAKER_TOKEN", "8635436262:AAF7BepP4Wf1v6-araw4IsyA
 INITIAL_ADMIN_ID = int(os.environ.get("ADMIN_ID", 7849637859))
 PORT = int(os.environ.get("PORT", 8080))
 
-# PythonAnywhere proksisini sozlash (zarur bo'lsa)
-session = AiohttpSession(proxy="http://proxy.server:3128")
-maker_bot = Bot(token=MAKER_TOKEN, session=session)
+# Render platformasiga proksi keraksiz - to'g'ridan-to me'yoriy ulanish beriladi
+maker_bot = Bot(token=MAKER_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 client_bots = {}
@@ -435,7 +433,7 @@ def build_client_dispatcher(template_id, db_id, admin_user, owner_id):
 async def register_and_start_client_bot(db_id, token, admin_user, owner_id, template_id=1):
     init_client_db(db_id)
     try:
-        c_bot = Bot(token=token, session=session)
+        c_bot = Bot(token=token)
         await c_bot.delete_webhook(drop_pending_updates=True)
         c_dp = build_client_dispatcher(template_id, db_id, admin_user, owner_id)
         client_bots[db_id] = c_bot
@@ -682,6 +680,34 @@ async def btn_edit_save(msg: types.Message, state: FSMContext):
     await msg.answer("✅ Tugma matni muvaffaqiyatli o'zgartirildi!", reply_markup=main_maker_menu())
     await state.clear()
 
+# --- MENYU TUGMALARI HANDLERLARI ---
+@dp.message(F.text.contains("100 ta Botlar Katalogi"))
+async def show_catalog(msg: types.Message):
+    text = "📚 **PRO MAX BOTLAR KATALOGI (1-100):**\n\n"
+    for i in range(1, 11):
+        info = BOT_TEMPLATES[i]
+        text += f"**#{i}** - {info['name']} _({info['cat']})_\n"
+    text += "\n... va yana 90 ta tayyor shablonlar xizmatingizda!"
+    await msg.answer(text)
+
+@dp.message(F.text.contains("Mening Botlarim"))
+async def show_my_bots(msg: types.Message):
+    bots = get_user_bots_by_owner(msg.from_user.id)
+    if not bots:
+        await msg.answer("📂 Sizda hali yaratilgan botlar mavjud emas.")
+        return
+
+    text = "📂 **MENING BOTLARIM:**\n\n"
+    for b in bots:
+        tpl = BOT_TEMPLATES.get(b[1], {"name": "Bot"})
+        text += f"🆔 **Bot ID:** `{b[0]}`\n📌 Shablon: {tpl['name']}\n⏳ Amal qilish muddati: **{b[2]}**\n🟢 Holati: {b[3]}\n-------------------\n"
+    await msg.answer(text)
+
+@dp.message(F.text.contains("Qo'llab-quvvatlash"))
+async def show_support(msg: types.Message):
+    admin_id = get_setting("admin_id", str(INITIAL_ADMIN_ID))
+    await msg.answer(f"📞 Savollar va takliflar bo'yicha Bosh Admin bilan bog'laning:\n🆔 Admin ID: `{admin_id}`")
+
 # --- BOT YARATISH BOSQICHALARI ---
 @dp.message(F.text.contains("Bot Yaratish"))
 async def start_create_bot(msg: types.Message, state: FSMContext):
@@ -756,60 +782,38 @@ async def process_create_receipt(msg: types.Message, state: FSMContext):
 
     caption = (
         f"📥 **YANGI BOT YARATISH CHEKI!**\n\n"
-        f"👤 Foydalanuvchi: {msg.from_user.full_name}\n"
-        f"🆔 ID: `{msg.from_user.id}`\n"
-        f"📌 Shablon ID: `{data['template_id']}`\n"
-        f"🔑 Admin: @{data['admin_user']}"
+        f"👤 Foydalanuvchi: {msg.from_user.full_name} (`{msg.from_user.id}`)\n"
+        f"🤖 Shablon ID: `{data.get('template_id')}`\n"
+        f"🔑 Admin Username: @{data.get('admin_user')}"
     )
 
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     try:
         await maker_bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=builder.as_markup())
-        await msg.answer("⌛ Chek adminga yuborildi! Tasdiqlangach botingiz ishga tushiriladi.")
+        await msg.answer("✅ Chek qabul qilindi. Bosh admin tasdiqlagach botingiz ishga tushiriladi!")
     except Exception as e:
-        logging.error(f"Adminga yaratish cheki yuborishda xatolik: {e}")
-        await msg.answer("⚠️ Chekni adminga yuborib bo'lmadi.")
-
+        await msg.answer(f"❌ Adminga xabar yuborishda xatolik yuz berdi: {e}")
+    
     await state.clear()
 
-@dp.message(F.text.contains("100 ta Botlar Katalogi"))
-async def show_catalog(msg: types.Message):
-    text = "📚 **PRO MAX BOTLAR KATALOGI:**\n\n"
-    for k in range(1, 11):
-        text += f"🔹 **ID: {k}** — {BOT_TEMPLATES[k]['name']}\n"
-    text += f"\n...va yana 90 ta maxsus bot shablonlari mavjud!"
-    await msg.answer(text)
-
-@dp.message(F.text.contains("Mening Botlarim"))
-async def my_bots(msg: types.Message):
-    user_bots = get_user_bots_by_owner(msg.from_user.id)
-    if not user_bots:
-        await msg.answer("❌ Sizda hali yaratilgan botlar yo'q.")
-        return
-    text = "📂 **Sizning Botlaringiz:**\n\n"
-    for b in user_bots:
-        template_name = BOT_TEMPLATES.get(b[1], {}).get("name", f"Shablon #{b[1]}")
-        text += f"🆔 **Bot ID:** `{b[0]}`\n🤖 **Tur:** {template_name}\n⏳ **Tugash sanasi:** {b[2]}\n------------------------------\n"
-    await msg.answer(text)
-
-@dp.message(F.text.contains("Qo'llab-quvvatlash"))
-async def support_info(msg: types.Message):
-    admin_id = get_setting("admin_id", str(INITIAL_ADMIN_ID))
-    await msg.answer(f"📞 Qo'llab-quvvatlash markazi admin ID: `{admin_id}`")
-
+# --- OBUNANI UZAYTIRISH BOSQICHALARI ---
 @dp.message(F.text.contains("Obunani Uzaytirish"))
 async def start_renew(msg: types.Message, state: FSMContext):
-    await msg.answer("🔄 Obunasini uzaytirmoqchi bo'lgan **Bot ID**ingizni kiriting:")
+    bots = get_user_bots_by_owner(msg.from_user.id)
+    if not bots:
+        await msg.answer("❌ Sizda uzaytiradigan botlar yo'q.")
+        return
+    await msg.answer("🔄 Obunasini uzaytirmoqchi bo'lgan **Bot ID-sini** kiriting:")
     await state.set_state(RenewFSM.waiting_bot_id)
 
 @dp.message(RenewFSM.waiting_bot_id)
 async def process_renew_bot_id(msg: types.Message, state: FSMContext):
-    if not msg.text or not msg.text.isdigit():
-        await msg.answer("❌ Noto'g'ri ID. Faqat raqam kiriting:")
+    if not msg.text.isdigit():
+        await msg.answer("❌ Noto'g'ri Bot ID. Raqam kiriting:")
         return
     bot_id = int(msg.text)
     await state.update_data(renew_bot_id=bot_id)
-    
+
     r_price = int(get_setting("renew_price", "11990"))
     card_num = get_setting("card_number")
     card_holder = get_setting("card_holder")
@@ -818,7 +822,7 @@ async def process_renew_bot_id(msg: types.Message, state: FSMContext):
         f"💳 **OBUNANI UZAYTIRISH TO'LOVI:**\n\n"
         f"🤖 Bot ID: `{bot_id}`\n"
         f"💵 Uzaytirish narxi: **{r_price:,} so'm**\n"
-        f"💳 Karta raqam: `{card_num}` ({card_holder})\n\n"
+        f"💳 Karta: `{card_num}` ({card_holder})\n\n"
         f"📌 To'lovni amalga oshirib, **chekni rasm holatida** yuboring:"
     )
     await msg.answer(text)
@@ -840,97 +844,97 @@ async def process_renew_receipt(msg: types.Message, state: FSMContext):
     bot_id = data.get("renew_bot_id")
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Obunani Uzaytirish", callback_data=f"approve_renew:{bot_id}:{msg.from_user.id}")
+    builder.button(text="✅ Obunani Uzaytirishni Tasdiqlash", callback_data=f"approve_renew:{bot_id}:{msg.from_user.id}")
     builder.button(text="❌ Rad etish", callback_data=f"reject:{msg.from_user.id}")
     builder.adjust(1)
 
     caption = (
         f"📥 **OBUNANI UZAYTIRISH CHEKI!**\n\n"
-        f"👤 Foydalanuvchi: {msg.from_user.full_name}\n"
-        f"🆔 ID: `{msg.from_user.id}`\n"
+        f"👤 Foydalanuvchi: {msg.from_user.full_name} (`{msg.from_user.id}`)\n"
         f"🤖 Bot ID: `{bot_id}`"
     )
 
     admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
     try:
         await maker_bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=builder.as_markup())
-        await msg.answer("⌛ Chek adminga yuborildi! Tasdiqlangach obunangiz uzaytiriladi.")
+        await msg.answer("✅ Chek qabul qilindi! Bosh admin tasdiqlashi bilan obuna uzaytiriladi.")
     except Exception as e:
-        logging.error(f"Adminga uzaytirish cheki yuborishda xatolik: {e}")
-        await msg.answer("⚠️ Chekni adminga yuborib bo'lmadi. Admin botga `/start` bosganini tekshiring.")
-
+        await msg.answer(f"❌ Adminga xabar yuborishda xatolik: {e}")
     await state.clear()
 
-# --- TASDIQLASH VA RAD ETISH HANDLERLARI ---
-@dp.callback_query(F.data.startswith("approve_renew:"))
-async def approve_renew_callback(call: types.CallbackQuery):
-    parts = call.data.split(":")
-    bot_id = int(parts[1])
-    user_id = int(parts[2])
-
-    new_expire = extend_bot_subscription(bot_id)
-    if new_expire:
-        await call.message.edit_caption(caption=f"{call.message.caption}\n\n✅ **ADMIN TAROFIDAN TASDIQLANDI!**")
-        try:
-            await maker_bot.send_message(user_id, f"🎉 **Obunangiz muvaffaqiyatli uzaytirildi!**\n🤖 Bot ID: `{bot_id}`\n⏳ Yangi tugash muddati: {new_expire}")
-        except Exception:
-            pass
-    else:
-        await call.answer("❌ Bot topilmadi!", show_alert=True)
-
+# --- ADMIN TASDIQLASH CALLBACKS ---
 @dp.callback_query(F.data.startswith("approve_create:"))
 async def approve_create_callback(call: types.CallbackQuery):
+    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
+    if call.from_user.id != admin_id: return
+
     owner_id = int(call.data.split(":")[1])
     pending = get_pending_creation(owner_id)
 
     if not pending:
-        await call.answer("❌ Bot ma'lumotlari topilmadi!", show_alert=True)
+        await call.message.edit_caption(caption=call.message.caption + "\n\n❌ **Xatolik:** Ariza ma'lumotlari topilmadi!")
         return
 
     token, admin_user, template_id = pending
     bot_id, expire = add_user_bot(owner_id, token, admin_user, template_id)
 
-    # Botni registratsiya qilish va yurgizish
     await register_and_start_client_bot(bot_id, token, admin_user, owner_id, template_id)
 
-    await call.message.edit_caption(caption=f"{call.message.caption}\n\n✅ **BOT TASDIQLANDI VA ISHGA TUSHIRILDI!**")
+    await call.message.edit_caption(caption=call.message.caption + f"\n\n✅ **BOT TASDIQLANDI VA ISHGA TUSHIRILDI!** (Bot ID: `{bot_id}`)")
     try:
-        await maker_bot.send_message(
-            owner_id,
-            f"🎉 **Tabriklaymiz! Botingiz muvaffaqiyatli yaratildi!**\n\n"
-            f"🆔 **Bot ID:** `{bot_id}`\n"
-            f"🤖 **Shablon ID:** {template_id}\n"
-            f"⏳ **Amal qilish muddati:** {expire}\n\n"
-            f"🚀 Botingizga o'tib `/start` tugmasini bosing!"
-        )
+        await maker_bot.send_message(owner_id, f"🎉 **Tabriklaymiz! Botingiz muvaffaqiyatli yaratildi va ishga tushdi!**\n\n🆔 Bot ID: `{bot_id}`\n⏳ Amal qilish muddati: **{expire}**")
     except Exception:
         pass
+    await call.answer()
+
+@dp.callback_query(F.data.startswith("approve_renew:"))
+async def approve_renew_callback(call: types.CallbackQuery):
+    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
+    if call.from_user.id != admin_id: return
+
+    parts = call.data.split(":")
+    bot_id = int(parts[1])
+    owner_id = int(parts[2])
+
+    new_expire = extend_bot_subscription(bot_id)
+
+    if new_expire:
+        await call.message.edit_caption(caption=call.message.caption + f"\n\n✅ **OBUNA UZAYTIRILDI!**\nYangi muddat: **{new_expire}**")
+        try:
+            await maker_bot.send_message(owner_id, f"🎉 **Bot ID: {bot_id} obunasi uzaytirildi!**\nYangi tugash muddati: **{new_expire}**")
+        except Exception:
+            pass
+    else:
+        await call.message.edit_caption(caption=call.message.caption + "\n\n❌ **Xatolik:** Bot topilmadi!")
+    await call.answer()
 
 @dp.callback_query(F.data.startswith("reject:"))
 async def reject_callback(call: types.CallbackQuery):
-    user_id = int(call.data.split(":")[1])
-    await call.message.edit_caption(caption=f"{call.message.caption}\n\n❌ **ADMIN TAROFIDAN RAD ETILDI!**")
+    admin_id = int(get_setting("admin_id", str(INITIAL_ADMIN_ID)))
+    if call.from_user.id != admin_id: return
+
+    owner_id = int(call.data.split(":")[1])
+    await call.message.edit_caption(caption=call.message.caption + "\n\n❌ **TO'LOV CHEKI RAD ETILDI!**")
     try:
-        await maker_bot.send_message(user_id, "❌ **To'loviniz rad etildi.** Iltimos, ma'lumotlar va chekni qayta tekshirib ko'ring.")
+        await maker_bot.send_message(owner_id, "❌ Siz yuborgan to'lov cheki admin tomonidan rad etildi. Qayta urinib ko'ring yoki adminga murojaat qiling.")
     except Exception:
         pass
+    await call.answer()
 
 # =====================================================================
-# 8. ASOSIY ISHGA TUSHIRISH (MAIN)
+# 8. ASOSIY ISHGA TUSHIRISH
 # =====================================================================
 async def main():
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    
-    # Bazani ishga tushirish
     init_db()
     
-    # Render uchun dummy web serverni ishga tushirish
+    # Render Web Serverini ishga tushirish
     await start_dummy_server()
     
-    # Barcha mijoz botlarini fonda ishga tushirish
+    # Barcha mavjud mijoz botlarini qayta tiklash
     await start_all_user_bots()
     
-    # Maker Botni webhooklaridan tozalab pollingni boshlash
+    # Maker Bot Webhook ni tozalash va Polling boshlash
     await maker_bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(maker_bot)
 
